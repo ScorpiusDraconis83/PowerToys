@@ -9,6 +9,7 @@
 
 #include <wil/resource.h>
 #include <wil/com.h>
+#include <wil/filesystem.h>
 
 #include <string_view>
 #include <optional>
@@ -20,5 +21,3 @@
 
 #include <Shobjidl.h>
 #include <Shlwapi.h>
-
-#include <common/Telemetry/ProjectTelemetry.h>

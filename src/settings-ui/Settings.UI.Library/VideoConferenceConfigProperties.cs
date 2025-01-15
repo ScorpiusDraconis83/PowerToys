@@ -5,10 +5,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Settings.UI.Library.Attributes;
+
 namespace Microsoft.PowerToys.Settings.UI.Library
 {
     public class VideoConferenceConfigProperties
     {
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultMuteCameraAndMicrophoneHotkey => new HotkeySettings()
         {
             Win = true,
@@ -19,6 +22,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             Code = 81,
         };
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultMuteMicrophoneHotkey => new HotkeySettings()
         {
             Win = true,
@@ -29,6 +33,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             Code = 65,
         };
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultPushToTalkMicrophoneHotkey => new HotkeySettings()
         {
             Win = true,
@@ -39,6 +44,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             Code = 73,
         };
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultMuteCameraHotkey => new HotkeySettings()
         {
             Win = true,

@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <winrt/base.h>
 #include <wil/resource.h>
-#include <ProjectTelemetry.h>
+#include <wil/filesystem.h>
 #include <common/logger/logger.h>
 
 #include <functional>

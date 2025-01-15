@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 #include "resource.h"
 #include "RcResource.h"
 #include <ProjectTelemetry.h>
@@ -10,10 +10,12 @@
 #include "../../src/common/utils/modulesRegistry.h"
 #include "../../src/common/updating/installer.h"
 #include "../../src/common/version/version.h"
+#include "../../src/common/Telemetry/EtwTrace/EtwTrace.h"
 
 #include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Management.Deployment.h>
+#include <winrt/Windows.Security.Credentials.h>
 
 #include <wtsapi32.h>
 #include <processthreadsapi.h>
@@ -26,9 +28,9 @@ HINSTANCE DLL_HANDLE = nullptr;
 
 TRACELOGGING_DEFINE_PROVIDER(
     g_hProvider,
-    "Microsoft.PowerToysInstaller",
-    // {e1d8165d-5cb6-5c74-3b51-bdfbfe4f7a3b}
-    (0xe1d8165d, 0x5cb6, 0x5c74, 0x3b, 0x51, 0xbd, 0xfb, 0xfe, 0x4f, 0x7a, 0x3b),
+    "Microsoft.PowerToys",
+    // {38e8889b-9731-53f5-e901-e8a7c1753074}
+    (0x38e8889b, 0x9731, 0x53f5, 0xe9, 0x01, 0xe8, 0xa7, 0xc1, 0x75, 0x30, 0x74),
     TraceLoggingOptionProjectTelemetry());
 
 const DWORD USERNAME_DOMAIN_LEN = DNLEN + UNLEN + 2; // Domain Name + '\' + User Name + '\0'
@@ -36,6 +38,53 @@ const DWORD USERNAME_LEN = UNLEN + 1; // User Name + '\0'
 
 static const wchar_t* POWERTOYS_EXE_COMPONENT = L"{A2C66D91-3485-4D00-B04D-91844E6B345B}";
 static const wchar_t* POWERTOYS_UPGRADE_CODE = L"{42B84BF7-5FBF-473B-9C8B-049DC16F7708}";
+
+constexpr inline const wchar_t* DataDiagnosticsRegKey = L"Software\\Classes\\PowerToys";
+constexpr inline const wchar_t* DataDiagnosticsRegValueName = L"AllowDataDiagnostics";
+
+#define TraceLoggingWriteWrapper(provider, eventName, ...)   \
+    if (isDataDiagnosticEnabled())                           \
+    {                                                        \
+        trace.UpdateState(true);                             \
+        TraceLoggingWrite(provider, eventName, __VA_ARGS__); \
+        trace.Flush();                                       \
+        trace.UpdateState(false);                            \
+    }
+
+static Shared::Trace::ETWTrace trace{ L"PowerToys_Installer" };
+
+inline bool isDataDiagnosticEnabled()
+{
+    HKEY key{};
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                        DataDiagnosticsRegKey,
+                        0,
+                        KEY_READ,
+                        &key) != ERROR_SUCCESS)
+    {
+        return false;
+    }
+
+    DWORD isDataDiagnosticsEnabled = 0;
+    DWORD size = sizeof(isDataDiagnosticsEnabled);
+
+    if (RegGetValueW(
+            HKEY_CURRENT_USER,
+            DataDiagnosticsRegKey,
+            DataDiagnosticsRegValueName,
+            RRF_RT_REG_DWORD,
+            nullptr,
+            &isDataDiagnosticsEnabled,
+            &size) != ERROR_SUCCESS)
+    {
+        RegCloseKey(key);
+        return false;
+    }
+    RegCloseKey(key);
+
+    return isDataDiagnosticsEnabled == 1;
+}
+
 
 HRESULT getInstallFolder(MSIHANDLE hInstall, std::wstring& installationDir)
 {
@@ -138,6 +187,23 @@ LExit:
     return SUCCEEDED(hr);
 }
 
+static std::filesystem::path GetUserPowerShellModulesPath()
+{
+    PWSTR myDocumentsBlockPtr;
+
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &myDocumentsBlockPtr)))
+    {
+        const std::wstring myDocuments{ myDocumentsBlockPtr };
+        CoTaskMemFree(myDocumentsBlockPtr);
+        return std::filesystem::path(myDocuments) / "PowerShell" / "Modules";
+    }
+    else
+    {
+        CoTaskMemFree(myDocumentsBlockPtr);
+        return {};
+    }
+}
+
 UINT __stdcall LaunchPowerToysCA(MSIHANDLE hInstall)
 {
     HRESULT hr = S_OK;
@@ -161,7 +227,7 @@ UINT __stdcall LaunchPowerToysCA(MSIHANDLE hInstall)
     BOOL isSystemUser = IsLocalSystem();
 
     if (isSystemUser) {
-    
+
         auto action = [&commandLine](HANDLE userToken) {
             STARTUPINFO startupInfo{ .cb = sizeof(STARTUPINFO),  .wShowWindow = SW_SHOWNORMAL };
             PROCESS_INFORMATION processInformation;
@@ -316,6 +382,125 @@ LExit:
     return WcaFinalize(er);
 }
 
+const wchar_t* DSC_CONFIGURE_PSD1_NAME = L"Microsoft.PowerToys.Configure.psd1";
+const wchar_t* DSC_CONFIGURE_PSM1_NAME = L"Microsoft.PowerToys.Configure.psm1";
+
+UINT __stdcall InstallDSCModuleCA(MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+    std::wstring installationFolder;
+
+    hr = WcaInitialize(hInstall, "InstallDSCModuleCA");
+    ExitOnFailure(hr, "Failed to initialize");
+
+    hr = getInstallFolder(hInstall, installationFolder);
+    ExitOnFailure(hr, "Failed to get installFolder.");
+
+    {
+        const auto baseModulesPath = GetUserPowerShellModulesPath();
+        if (baseModulesPath.empty())
+        {
+            hr = E_FAIL;
+            ExitOnFailure(hr, "Unable to determine Powershell modules path");
+        }
+
+        const auto modulesPath = baseModulesPath / L"Microsoft.PowerToys.Configure" / (get_product_version(false) + L".0");
+
+        std::error_code errorCode;
+        fs::create_directories(modulesPath, errorCode);
+        if (errorCode)
+        {
+            hr = E_FAIL;
+            ExitOnFailure(hr, "Unable to create Powershell modules folder");
+        }
+
+        for (const auto* filename : { DSC_CONFIGURE_PSD1_NAME, DSC_CONFIGURE_PSM1_NAME })
+        {
+            fs::copy_file(fs::path(installationFolder) / "DSCModules" / filename, modulesPath / filename, fs::copy_options::overwrite_existing, errorCode);
+
+            if (errorCode)
+            {
+                hr = E_FAIL;
+                ExitOnFailure(hr, "Unable to copy Powershell modules file");
+            }
+        }
+    }
+
+LExit:
+    if (SUCCEEDED(hr))
+    {
+        er = ERROR_SUCCESS;
+        Logger::info(L"DSC module was installed!");
+    }
+    else
+    {
+        er = ERROR_INSTALL_FAILURE;
+        Logger::error(L"Couldn't install DSC module!");
+    }
+
+    return WcaFinalize(er);
+}
+
+UINT __stdcall UninstallDSCModuleCA(MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+
+    hr = WcaInitialize(hInstall, "UninstallDSCModuleCA");
+    ExitOnFailure(hr, "Failed to initialize");
+
+    {
+        const auto baseModulesPath = GetUserPowerShellModulesPath();
+        if (baseModulesPath.empty())
+        {
+            hr = E_FAIL;
+            ExitOnFailure(hr, "Unable to determine Powershell modules path");
+        }
+
+        const auto powerToysModulePath = baseModulesPath / L"Microsoft.PowerToys.Configure";
+        const auto versionedModulePath = powerToysModulePath / (get_product_version(false) + L".0");
+
+        std::error_code errorCode;
+
+        for (const auto* filename : { DSC_CONFIGURE_PSD1_NAME, DSC_CONFIGURE_PSM1_NAME })
+        {
+            fs::remove(versionedModulePath / filename, errorCode);
+
+            if (errorCode)
+            {
+                hr = E_FAIL;
+                ExitOnFailure(hr, "Unable to delete DSC file");
+            }
+        }
+
+        for (const auto* modulePath : { &versionedModulePath, &powerToysModulePath })
+        {
+            fs::remove(*modulePath, errorCode);
+
+            if (errorCode)
+            {
+                hr = E_FAIL;
+                ExitOnFailure(hr, "Unable to delete DSC folder");
+            }
+        }
+    }
+
+LExit:
+    if (SUCCEEDED(hr))
+    {
+        er = ERROR_SUCCESS;
+        Logger::info(L"DSC module was uninstalled!");
+    }
+    else
+    {
+        er = ERROR_INSTALL_FAILURE;
+        Logger::error(L"Couldn't uninstall DSC module!");
+    }
+
+    return WcaFinalize(er);
+}
+
 UINT __stdcall InstallEmbeddedMSIXCA(MSIHANDLE hInstall)
 {
     HRESULT hr = S_OK;
@@ -433,6 +618,31 @@ UINT __stdcall RemoveWindowsServiceByName(std::wstring serviceName)
     return ERROR_SUCCESS;
 }
 
+UINT __stdcall UnsetAdvancedPasteAPIKeyCA(MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+
+    try
+    {
+        winrt::Windows::Security::Credentials::PasswordVault vault;
+        winrt::Windows::Security::Credentials::PasswordCredential cred;
+
+        hr = WcaInitialize(hInstall, "UnsetAdvancedPasteAPIKey");
+        ExitOnFailure(hr, "Failed to initialize");
+
+        cred = vault.Retrieve(L"https://platform.openai.com/api-keys", L"PowerToys_AdvancedPaste_OpenAIKey");
+        vault.Remove(cred);
+    }
+    catch (...)
+    {
+    }
+
+LExit:
+    er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    return WcaFinalize(er);
+}
+
 UINT __stdcall UninstallCommandNotFoundModuleCA(MSIHANDLE hInstall)
 {
     HRESULT hr = S_OK;
@@ -446,9 +656,43 @@ UINT __stdcall UninstallCommandNotFoundModuleCA(MSIHANDLE hInstall)
     hr = getInstallFolder(hInstall, installationFolder);
     ExitOnFailure(hr, "Failed to get installFolder.");
 
+#ifdef _M_ARM64
+    command = "powershell.exe";
+    command += " ";
+    command += "-NoProfile -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Unrestricted";
+    command += " -Command ";
+    command += "\"[Environment]::SetEnvironmentVariable('PATH', [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'User'), 'Process');";
+    command += "pwsh.exe -NoProfile -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Unrestricted -File '" + winrt::to_string(installationFolder) + "\\WinUI3Apps\\Assets\\Settings\\Scripts\\DisableModule.ps1" + "'\"";
+#else
     command = "pwsh.exe";
     command += " ";
     command += "-NoProfile -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Unrestricted -File \"" + winrt::to_string(installationFolder) + "\\WinUI3Apps\\Assets\\Settings\\Scripts\\DisableModule.ps1" + "\"";
+#endif
+
+
+    system(command.c_str());
+
+LExit:
+    er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    return WcaFinalize(er);
+}
+
+UINT __stdcall UpgradeCommandNotFoundModuleCA(MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    UINT er = ERROR_SUCCESS;
+    std::wstring installationFolder;
+    std::string command;
+
+    hr = WcaInitialize(hInstall, "UpgradeCommandNotFoundModule");
+    ExitOnFailure(hr, "Failed to initialize");
+
+    hr = getInstallFolder(hInstall, installationFolder);
+    ExitOnFailure(hr, "Failed to get installFolder.");
+
+    command = "pwsh.exe";
+    command += " ";
+    command += "-NoProfile -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Unrestricted -File \"" + winrt::to_string(installationFolder) + "\\WinUI3Apps\\Assets\\Settings\\Scripts\\UpgradeModule.ps1" + "\"";
 
     system(command.c_str());
 
@@ -597,13 +841,14 @@ UINT __stdcall TelemetryLogInstallSuccessCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogInstallSuccessCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "Install_Success",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
         ProjectTelemetryPrivacyDataTag(ProjectTelemetryTag_ProductAndServicePerformance),
         TraceLoggingBoolean(TRUE, "UTCReplace_AppSessionGuid"),
-        TraceLoggingKeyword(PROJECT_KEYWORD_MEASURE));
+        TraceLoggingKeyword(PROJECT_KEYWORD_MEASURE)
+        );
 
 LExit:
     er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
@@ -618,7 +863,7 @@ UINT __stdcall TelemetryLogInstallCancelCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogInstallCancelCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "Install_Cancel",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -639,7 +884,7 @@ UINT __stdcall TelemetryLogInstallFailCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogInstallFailCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "Install_Fail",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -660,7 +905,7 @@ UINT __stdcall TelemetryLogUninstallSuccessCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogUninstallSuccessCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "UnInstall_Success",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -681,7 +926,7 @@ UINT __stdcall TelemetryLogUninstallCancelCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogUninstallCancelCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "UnInstall_Cancel",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -702,7 +947,7 @@ UINT __stdcall TelemetryLogUninstallFailCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogUninstallFailCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "UnInstall_Fail",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -723,7 +968,7 @@ UINT __stdcall TelemetryLogRepairCancelCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogRepairCancelCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "Repair_Cancel",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -744,7 +989,7 @@ UINT __stdcall TelemetryLogRepairFailCA(MSIHANDLE hInstall)
     hr = WcaInitialize(hInstall, "TelemetryLogRepairFailCA");
     ExitOnFailure(hr, "Failed to initialize");
 
-    TraceLoggingWrite(
+    TraceLoggingWriteWrapper(
         g_hProvider,
         "Repair_Fail",
         TraceLoggingWideString(get_product_version().c_str(), "Version"),
@@ -952,7 +1197,7 @@ UINT __stdcall UnRegisterContextMenuPackagesCA(MSIHANDLE hInstall)
     try
     {
         // Packages to unregister
-        const std::vector<std::wstring> packagesToRemoveDisplayName{ { L"PowerRenameContextMenu" }, { L"ImageResizerContextMenu" } };
+        const std::vector<std::wstring> packagesToRemoveDisplayName{ { L"PowerRenameContextMenu" }, { L"ImageResizerContextMenu" }, { L"FileLocksmithContextMenu" }, { L"NewPlusContextMenu" } };
 
         PackageManager packageManager;
 
@@ -1027,9 +1272,10 @@ UINT __stdcall TerminateProcessesCA(MSIHANDLE hInstall)
     }
     processes.resize(bytes / sizeof(processes[0]));
 
-    std::array<std::wstring_view, 31> processesToTerminate = {
+    std::array<std::wstring_view, 37> processesToTerminate = {
         L"PowerToys.PowerLauncher.exe",
         L"PowerToys.Settings.exe",
+        L"PowerToys.AdvancedPaste.exe",
         L"PowerToys.Awake.exe",
         L"PowerToys.FancyZones.exe",
         L"PowerToys.FancyZonesEditor.exe",
@@ -1058,6 +1304,11 @@ UINT __stdcall TerminateProcessesCA(MSIHANDLE hInstall)
         L"PowerToys.MouseWithoutBordersService.exe",
         L"PowerToys.CropAndLock.exe",
         L"PowerToys.EnvironmentVariables.exe",
+        L"PowerToys.WorkspacesSnapshotTool.exe",
+        L"PowerToys.WorkspacesLauncher.exe",
+        L"PowerToys.WorkspacesLauncherUI.exe",
+        L"PowerToys.WorkspacesEditor.exe",
+        L"PowerToys.WorkspacesWindowArranger.exe",
         L"PowerToys.exe",
     };
 

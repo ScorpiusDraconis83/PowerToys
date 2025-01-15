@@ -14,13 +14,13 @@
   <?define SettingsV2OOBEAssetsModulesFilesPath=$(var.BinDir)WinUI3Apps\Assets\Settings\Modules\OOBE\?>
 
   <?define SettingsV2OOBEAssetsFluentIconsFiles=?>
-  <?define SettingsV2OOBEAssetsFluentIconsFilesPath=$(var.BinDir)WinUI3Apps\Assets\Settings\FluentIcons\?>
+  <?define SettingsV2OOBEAssetsFluentIconsFilesPath=$(var.BinDir)WinUI3Apps\Assets\Settings\Icons\?>
 
   <Fragment>
     <DirectoryRef Id="WinUI3AppsAssetsFolder">
       <Directory Id="SettingsV2AssetsInstallFolder" Name="Settings">
         <Directory Id="SettingsAppAssetsScriptsFolder" Name="Scripts"/>
-        <Directory Id="SettingsV2OOBEAssetsFluentIconsInstallFolder" Name="FluentIcons" />
+        <Directory Id="SettingsV2OOBEAssetsFluentIconsInstallFolder" Name="Icons" />
         <Directory Id="SettingsV2AssetsModulesInstallFolder" Name="Modules" >
           <Directory Id="SettingsV2OOBEAssetsModulesInstallFolder" Name="OOBE" />
         </Directory>
@@ -53,7 +53,11 @@
           <RegistryValue Type="string" Name="CommandNotFound_Scripts" Value="" KeyPath="yes"/>
         </RegistryKey>
         <File Id="CommandNotFound_Scripts_EnableModule.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\EnableModule.ps1" />
+        <File Id="CommandNotFound_Scripts_UpgradeModule.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\UpgradeModule.ps1" />
         <File Id="CommandNotFound_Scripts_DisableModule.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\DisableModule.ps1" />
+        <File Id="CommandNotFound_Scripts_CheckCmdNotFoundRequirements.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\CheckCmdNotFoundRequirements.ps1" />
+        <File Id="CommandNotFound_Scripts_InstallWinGetClientModule.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\InstallWinGetClientModule.ps1" />
+        <File Id="CommandNotFound_Scripts_InstallPowerShell7.ps1" Source="$(var.SettingsV2AssetsFilesPath)\Scripts\InstallPowerShell7.ps1" />
       </Component>
     </DirectoryRef>
 

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+
 using Community.PowerToys.Run.Plugin.VSCodeWorkspaces.VSCodeHelper;
 using Microsoft.Data.Sqlite;
 using Wox.Plugin.Logger;
@@ -46,6 +47,11 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
                 path = path[1..];
             }
 
+            if (!DoesPathExist(path, workspaceEnv.Value))
+            {
+                return null;
+            }
+
             var folderName = Path.GetFileName(path);
 
             // Check we haven't returned '' if we have a path like C:\
@@ -65,6 +71,17 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
                 WorkspaceEnvironment = workspaceEnv ?? default,
                 VSCodeInstance = vscodeInstance,
             };
+        }
+
+        private bool DoesPathExist(string path, WorkspaceEnvironment workspaceEnv)
+        {
+            if (workspaceEnv == WorkspaceEnvironment.Local)
+            {
+                return Directory.Exists(path) || File.Exists(path);
+            }
+
+            // If the workspace environment is not Local or WSL, assume the path exists
+            return true;
         }
 
         public List<VSCodeWorkspace> Workspaces

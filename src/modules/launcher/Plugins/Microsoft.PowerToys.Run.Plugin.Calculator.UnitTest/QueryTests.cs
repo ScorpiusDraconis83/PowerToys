@@ -4,6 +4,8 @@
 
 using System.Globalization;
 using System.Linq;
+
+using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Wox.Plugin;
@@ -13,6 +15,19 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
     [TestClass]
     public class QueryTests
     {
+        private static Mock<Main> _main;
+        private static Mock<IPublicAPI> _api;
+
+        [TestInitialize]
+        public void Initialize()
+        {
+            _api = new Mock<IPublicAPI>();
+            _api.Setup(api => api.ChangeQuery(It.IsAny<string>(), It.IsAny<bool>())).Verifiable();
+
+            _main = new Mock<Main>();
+            _main.Object.Init(new PluginInitContext() { API = _api.Object });
+        }
+
         [DataTestMethod]
         [DataRow("=pi(9+)", "Expression wrong or incomplete (Did you forget some parentheses?)")]
         [DataRow("=pi,", "Expression wrong or incomplete (Did you forget some parentheses?)")]
@@ -26,14 +41,14 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         [DataRow("=5 / 0", "Expression contains division by zero")]
         [DataRow("10+(8*9)/0+7", "Expression contains division by zero")]
         [DataRow("10+(8*9)/0*7", "Expression contains division by zero")]
+        [DataRow("10+(8*9)/0x00", "Expression contains division by zero")]
+        [DataRow("10+(8*9)/0b0", "Expression contains division by zero")]
         public void ErrorResultOnInvalidKeywordQuery(string typedString, string expectedResult)
         {
-            // Setup
-            Mock<Main> main = new();
             Query expectedQuery = new(typedString, "=");
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault().SubTitle;
+            var result = _main.Object.Query(expectedQuery).FirstOrDefault().SubTitle;
 
             // Assert
             Assert.AreEqual(expectedResult, result);
@@ -55,11 +70,10 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         public void NoResultOnInvalidGlobalQuery(string typedString)
         {
             // Setup
-            Mock<Main> main = new();
             Query expectedQuery = new(typedString);
 
             // Act
-            var result = main.Object.Query(expectedQuery).Count;
+            var result = _main.Object.Query(expectedQuery).Count;
 
             // Assert
             Assert.AreEqual(result, 0);
@@ -79,13 +93,12 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         public void NoResultIfQueryEndsWithBinaryOperator(string typedString)
         {
             // Setup
-            Mock<Main> main = new();
             Query expectedQuery = new(typedString);
             Query expectedQueryWithKeyword = new("=" + typedString, "=");
 
             // Act
-            var result = main.Object.Query(expectedQuery).Count;
-            var resultWithKeyword = main.Object.Query(expectedQueryWithKeyword).Count;
+            var result = _main.Object.Query(expectedQuery).Count;
+            var resultWithKeyword = _main.Object.Query(expectedQueryWithKeyword).Count;
 
             // Assert
             Assert.AreEqual(result, 0);
@@ -100,13 +113,12 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         public void NoErrorForDivisionByNumberWithDecimalDigits(string typedString)
         {
             // Setup
-            Mock<Main> main = new();
             Query expectedQuery = new(typedString);
             Query expectedQueryWithKeyword = new("=" + typedString, "=");
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault().SubTitle;
-            var resultWithKeyword = main.Object.Query(expectedQueryWithKeyword).FirstOrDefault().SubTitle;
+            var result = _main.Object.Query(expectedQuery).FirstOrDefault().SubTitle;
+            var resultWithKeyword = _main.Object.Query(expectedQueryWithKeyword).FirstOrDefault().SubTitle;
 
             // Assert
             Assert.AreEqual(result, "Copy this number to the clipboard");
@@ -190,13 +202,12 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         public void NoErrorForHumanMultiplicationExpressions(string typedString)
         {
             // Setup
-            Mock<Main> main = new();
             Query expectedQuery = new(typedString);
             Query expectedQueryWithKeyword = new("=" + typedString, "=");
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault()?.SubTitle;
-            var resultWithKeyword = main.Object.Query(expectedQueryWithKeyword).FirstOrDefault()?.SubTitle;
+            var result = _main.Object.Query(expectedQuery).FirstOrDefault()?.SubTitle;
+            var resultWithKeyword = _main.Object.Query(expectedQueryWithKeyword).FirstOrDefault()?.SubTitle;
 
             // Assert
             Assert.AreEqual("Copy this number to the clipboard", result);
@@ -221,17 +232,55 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         public void RightAnswerForHumanMultiplicationExpressions(string typedString, double answer)
         {
             // Setup
-            Mock<Main> main = new();
+            typedString = typedString.Replace(".", CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalSeparator); // Workaround to get correct results when the tests are running on a non-english systems.
             Query expectedQuery = new(typedString);
             Query expectedQueryWithKeyword = new("=" + typedString, "=");
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault()?.Title;
-            var resultWithKeyword = main.Object.Query(expectedQueryWithKeyword).FirstOrDefault()?.Title;
+            var result = _main.Object.Query(expectedQuery).FirstOrDefault()?.Title;
+            var resultWithKeyword = _main.Object.Query(expectedQueryWithKeyword).FirstOrDefault()?.Title;
 
             // Assert
             Assert.AreEqual(answer.ToString(CultureInfo.CurrentCulture), result);
             Assert.AreEqual(answer.ToString(CultureInfo.CurrentCulture), resultWithKeyword);
+        }
+
+        [DataTestMethod]
+        [DataRow("0x1234+0x1234", 9320)]
+        [DataRow("0x1234-0x1234", 0)]
+        [DataRow("0x12345678+0x12345678", 610839792)]
+        [DataRow("0xf4572220-0xf4572410", -496)]
+        public void RightAnswerForLargeHexadecimalNumbers(string typedString, double answer)
+        {
+            // Setup
+            Query expectedQuery = new(typedString);
+            Query expectedQueryWithKeyword = new("=" + typedString, "=");
+
+            // Act
+            var result = _main.Object.Query(expectedQuery).FirstOrDefault()?.Title;
+            var resultWithKeyword = _main.Object.Query(expectedQueryWithKeyword).FirstOrDefault()?.Title;
+
+            // Assert
+            Assert.AreEqual(answer.ToString(CultureInfo.CurrentCulture), result);
+            Assert.AreEqual(answer.ToString(CultureInfo.CurrentCulture), resultWithKeyword);
+        }
+
+        [DataTestMethod]
+        [DataRow("#", "#1+1=", true)]
+        [DataRow("#", "#1+1", false)]
+        [DataRow("#", "#1/0=", false)]
+        [DataRow("", "1+1=", false)]
+        public void HandleInputReplace(string actionKeyword, string query, bool shouldChangeQuery)
+        {
+            // Setup
+            Query expectedQuery = new(query, actionKeyword);
+            _main.Object.UpdateSettings(new PowerLauncherPluginSettings()); // Default settings
+
+            // Act
+            _main.Object.Query(expectedQuery);
+
+            // Assert
+            _api.Verify(api => api.ChangeQuery(It.IsAny<string>(), It.IsAny<bool>()), shouldChangeQuery ? Times.Once : Times.Never);
         }
     }
 }
