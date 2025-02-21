@@ -14,6 +14,7 @@ namespace
     const wchar_t JSON_KEY_PROPERTIES[] = L"properties";
     const wchar_t JSON_KEY_VALUE[] = L"value";
     const wchar_t JSON_KEY_ACTIVATION_METHOD[] = L"activation_method";
+    const wchar_t JSON_KEY_INCLUDE_WIN_KEY[] = L"include_win_key";
     const wchar_t JSON_KEY_DO_NOT_ACTIVATE_ON_GAME_MODE[] = L"do_not_activate_on_game_mode";
     const wchar_t JSON_KEY_BACKGROUND_COLOR[] = L"background_color";
     const wchar_t JSON_KEY_SPOTLIGHT_COLOR[] = L"spotlight_color";
@@ -23,6 +24,8 @@ namespace
     const wchar_t JSON_KEY_SPOTLIGHT_INITIAL_ZOOM[] = L"spotlight_initial_zoom";
     const wchar_t JSON_KEY_EXCLUDED_APPS[] = L"excluded_apps";
     const wchar_t JSON_KEY_SHAKING_MINIMUM_DISTANCE[] = L"shaking_minimum_distance";
+    const wchar_t JSON_KEY_SHAKING_INTERVAL_MS[] = L"shaking_interval_ms";
+    const wchar_t JSON_KEY_SHAKING_FACTOR[] = L"shaking_factor";
     const wchar_t JSON_KEY_ACTIVATION_SHORTCUT[] = L"activation_shortcut";
 }
 
@@ -236,6 +239,15 @@ void FindMyMouse::parse_settings(PowerToysSettings::PowerToyValues& settings)
         }
         try
         {
+            auto jsonPropertiesObject = settingsObject.GetNamedObject(JSON_KEY_PROPERTIES).GetNamedObject(JSON_KEY_INCLUDE_WIN_KEY);
+            findMyMouseSettings.includeWinKey = jsonPropertiesObject.GetNamedBoolean(JSON_KEY_VALUE);
+        }
+        catch (...)
+        {
+            Logger::warn("Failed to get 'include windows key with ctrl' setting");
+        }
+        try
+        {
             auto jsonPropertiesObject = settingsObject.GetNamedObject(JSON_KEY_PROPERTIES).GetNamedObject(JSON_KEY_DO_NOT_ACTIVATE_ON_GAME_MODE);
             findMyMouseSettings.doNotActivateOnGameMode = jsonPropertiesObject.GetNamedBoolean(JSON_KEY_VALUE);
         }
@@ -395,6 +407,42 @@ void FindMyMouse::parse_settings(PowerToysSettings::PowerToyValues& settings)
         catch (...)
         {
             Logger::warn("Failed to initialize Shaking Minimum Distance from settings. Will use default value");
+        }
+        try
+        {
+            // Parse Shaking Interval Milliseconds
+            auto jsonPropertiesObject = settingsObject.GetNamedObject(JSON_KEY_PROPERTIES).GetNamedObject(JSON_KEY_SHAKING_INTERVAL_MS);
+            int value = static_cast<int>(jsonPropertiesObject.GetNamedNumber(JSON_KEY_VALUE));
+            if (value >= 0)
+            {
+                findMyMouseSettings.shakeIntervalMs = value;
+            }
+            else
+            {
+                throw std::runtime_error("Invalid Shaking Interval Milliseconds value");
+            }
+        }
+        catch (...)
+        {
+            Logger::warn("Failed to initialize Shaking Interval Milliseconds from settings. Will use default value");
+        }
+        try
+        {
+            // Parse Shaking Factor
+            auto jsonPropertiesObject = settingsObject.GetNamedObject(JSON_KEY_PROPERTIES).GetNamedObject(JSON_KEY_SHAKING_FACTOR);
+            int value = static_cast<int>(jsonPropertiesObject.GetNamedNumber(JSON_KEY_VALUE));
+            if (value >= 0)
+            {
+                findMyMouseSettings.shakeFactor = value;
+            }
+            else
+            {
+                throw std::runtime_error("Invalid Shaking Factor value");
+            }
+        }
+        catch (...)
+        {
+            Logger::warn("Failed to initialize Shaking Factor from settings. Will use default value");
         }
 
         try

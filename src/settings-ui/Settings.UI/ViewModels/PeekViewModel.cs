@@ -5,6 +5,7 @@
 using System;
 using System.Globalization;
 using System.Text.Json;
+
 using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.PowerToys.Settings.UI.Library.Helpers;
@@ -168,6 +169,48 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 {
                     _peekPreviewSettings.SourceCodeTryFormat.Value = value;
                     OnPropertyChanged(nameof(SourceCodeTryFormat));
+                    SavePreviewSettings();
+                }
+            }
+        }
+
+        public int SourceCodeFontSize
+        {
+            get => _peekPreviewSettings.SourceCodeFontSize.Value;
+            set
+            {
+                if (_peekPreviewSettings.SourceCodeFontSize.Value != value)
+                {
+                    _peekPreviewSettings.SourceCodeFontSize.Value = value;
+                    OnPropertyChanged(nameof(SourceCodeFontSize));
+                    SavePreviewSettings();
+                }
+            }
+        }
+
+        public bool SourceCodeStickyScroll
+        {
+            get => _peekPreviewSettings.SourceCodeStickyScroll.Value;
+            set
+            {
+                if (_peekPreviewSettings.SourceCodeStickyScroll.Value != value)
+                {
+                    _peekPreviewSettings.SourceCodeStickyScroll.Value = value;
+                    OnPropertyChanged(nameof(SourceCodeStickyScroll));
+                    SavePreviewSettings();
+                }
+            }
+        }
+
+        public bool SourceCodeMinimap
+        {
+            get => _peekPreviewSettings.SourceCodeMinimap.Value;
+            set
+            {
+                if (_peekPreviewSettings.SourceCodeMinimap.Value != value)
+                {
+                    _peekPreviewSettings.SourceCodeMinimap.Value = value;
+                    OnPropertyChanged(nameof(SourceCodeMinimap));
                     SavePreviewSettings();
                 }
             }

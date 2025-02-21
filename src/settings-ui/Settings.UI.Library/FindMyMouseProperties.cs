@@ -4,14 +4,20 @@
 
 using System.Text.Json.Serialization;
 
+using Settings.UI.Library.Attributes;
+
 namespace Microsoft.PowerToys.Settings.UI.Library
 {
     public class FindMyMouseProperties
     {
+        [CmdConfigureIgnore]
         public HotkeySettings DefaultActivationShortcut => new HotkeySettings(true, false, false, true, 0x46);
 
         [JsonPropertyName("activation_method")]
         public IntProperty ActivationMethod { get; set; }
+
+        [JsonPropertyName("include_win_key")]
+        public BoolProperty IncludeWinKey { get; set; }
 
         [JsonPropertyName("activation_shortcut")]
         public HotkeySettings ActivationShortcut { get; set; }
@@ -43,9 +49,16 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("shaking_minimum_distance")]
         public IntProperty ShakingMinimumDistance { get; set; }
 
+        [JsonPropertyName("shaking_interval_ms")]
+        public IntProperty ShakingIntervalMs { get; set; }
+
+        [JsonPropertyName("shaking_factor")]
+        public IntProperty ShakingFactor { get; set; }
+
         public FindMyMouseProperties()
         {
             ActivationMethod = new IntProperty(0);
+            IncludeWinKey = new BoolProperty(false);
             ActivationShortcut = DefaultActivationShortcut;
             DoNotActivateOnGameMode = new BoolProperty(true);
             BackgroundColor = new StringProperty("#000000");
@@ -56,6 +69,8 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             SpotlightInitialZoom = new IntProperty(9);
             ExcludedApps = new StringProperty();
             ShakingMinimumDistance = new IntProperty(1000);
+            ShakingIntervalMs = new IntProperty(1000);
+            ShakingFactor = new IntProperty(400);
         }
     }
 }

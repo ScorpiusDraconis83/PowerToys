@@ -6,6 +6,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
 using ManagedCommon;
 using Microsoft.UI;
 using Windows.UI;
@@ -19,13 +20,13 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         public string Label { get; set; }
 
+        public bool IsNew { get; set; }
+
         public string Icon { get; set; }
 
         public string ToolTip { get; set; }
 
         public ModuleType Tag { get; set; }
-
-        public Color AccentColor { get; set; } = Colors.Transparent;
 
         public bool IsLocked { get; set; }
 

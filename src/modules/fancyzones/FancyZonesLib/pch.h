@@ -8,13 +8,12 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
-#include <ProjectTelemetry.h>
 #include <shellapi.h>
 #include <ShellScalingApi.h>
 #include <strsafe.h>
-#include <TraceLoggingActivity.h>
-#include <wil\resource.h>
-#include <wil\result.h>
+#include <wil/filesystem.h>
+#include <wil/resource.h>
+#include <wil/result.h>
 #include <winrt/windows.foundation.h>
 #include <psapi.h>
 #include <shared_mutex>

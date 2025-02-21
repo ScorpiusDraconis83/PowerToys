@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
+
 using static PowerLauncher.Helper.WindowsInteropHelper;
 
 // http://blogs.microsoft.co.il/arik/2010/05/28/wpf-single-instance-application/
@@ -68,6 +69,9 @@ namespace PowerLauncher.Helper
 
         [DllImport("user32.DLL", CharSet = CharSet.Unicode)]
         internal static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+
+        [DllImport("shell32.dll")]
+        public static extern int SHQueryUserNotificationState(out UserNotificationState state);
 
         public static string[] CommandLineToArgvW(string cmdLine)
         {
@@ -241,5 +245,16 @@ namespace PowerLauncher.Helper
         // It's relatively safe to reuse.
         TRAYMOUSEMESSAGE = 0x800, // WM_USER + 1024
         APP = 0x8000,
+    }
+
+    internal enum UserNotificationState : int
+    {
+        QUNS_NOT_PRESENT = 1,
+        QUNS_BUSY,
+        QUNS_RUNNING_D3D_FULL_SCREEN,
+        QUNS_PRESENTATION_MODE,
+        QUNS_ACCEPTS_NOTIFICATIONS,
+        QUNS_QUIET_TIME,
+        QUNS_APP,
     }
 }

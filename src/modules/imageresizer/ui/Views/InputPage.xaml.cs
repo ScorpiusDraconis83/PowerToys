@@ -1,13 +1,17 @@
-﻿// Copyright (c) Brice Lambson
+﻿#pragma warning disable IDE0073
+// Copyright (c) Brice Lambson
 // The Brice Lambson licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.  Code forked from Brice Lambson's https://github.com/bricelam/ImageResizer/
+// See the LICENSE file in the project root for more information.
+// Code forked from Brice Lambson's https://github.com/bricelam/ImageResizer/
+#pragma warning restore IDE0073
 
 using System.Windows.Controls;
 using System.Windows.Input;
+
 using ImageResizer.ViewModels;
 using Wpf.Ui.Controls;
+
 using static ImageResizer.ViewModels.InputViewModel;
-using Numberbox = Wpf.Ui.Controls.NumberBox;
 
 namespace ImageResizer.Views
 {
@@ -29,10 +33,9 @@ namespace ImageResizer.Views
             if (e.Key == Key.Enter)
             {
                 var numberBox = sender as NumberBox;
-                var viewModel = (InputViewModel)this.DataContext;
-                double number;
+                var viewModel = (InputViewModel)DataContext;
                 KeyPressParams keyParams;
-                if (double.TryParse(((System.Windows.Controls.TextBox)e.OriginalSource).Text, out number))
+                if (double.TryParse(((System.Windows.Controls.TextBox)e.OriginalSource).Text, out double number))
                 {
                     // Determine which NumberBox triggered the event based on its name
                     switch (numberBox.Name)

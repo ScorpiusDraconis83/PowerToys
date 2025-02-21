@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+
 using ManagedCommon;
 using Microsoft.Toolkit.Uwp.Notifications;
 using PowerLauncher.Helper;
@@ -49,7 +50,10 @@ namespace Wox
 
         public void ChangeQuery(string query, bool requery = false)
         {
-            _mainVM.ChangeQueryText(query, requery);
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _mainVM.ChangeQueryText(query, requery);
+            });
         }
 
         public void CheckForNewUpdate()

@@ -3,14 +3,14 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using interop;
-using ManagedCommon;
+
 using Microsoft.PowerToys.Settings.UI.Helpers;
 using Microsoft.PowerToys.Settings.UI.OOBE.Enums;
 using Microsoft.PowerToys.Settings.UI.OOBE.Views;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using PowerToys.Interop;
 using Windows.Graphics;
 using WinUIEx;
 using WinUIEx.Messaging;
@@ -20,7 +20,7 @@ namespace Microsoft.PowerToys.Settings.UI
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class OobeWindow : WindowEx
+    public sealed partial class OobeWindow : WindowEx, IDisposable
     {
         private PowerToysModules initialModule;
 
@@ -31,9 +31,14 @@ namespace Microsoft.PowerToys.Settings.UI
         private WindowId _windowId;
         private IntPtr _hWnd;
         private AppWindow _appWindow;
+        private WindowMessageMonitor _msgMonitor;
+        private bool disposedValue;
 
         public OobeWindow(PowerToysModules initialModule)
         {
+            App.ThemeService.ThemeChanged += OnThemeChanged;
+            App.ThemeService.ApplyTheme();
+
             this.InitializeComponent();
 
             // Set window icon
@@ -59,8 +64,8 @@ namespace Microsoft.PowerToys.Settings.UI
 
             this.initialModule = initialModule;
 
-            var msgMonitor = new WindowMessageMonitor(this);
-            msgMonitor.WindowMessageReceived += (_, e) =>
+            _msgMonitor = new WindowMessageMonitor(this);
+            _msgMonitor.WindowMessageReceived += (_, e) =>
             {
                 const int WM_NCLBUTTONDBLCLK = 0x00A3;
                 if (e.Message.MessageId == WM_NCLBUTTONDBLCLK)
@@ -131,6 +136,30 @@ namespace Microsoft.PowerToys.Settings.UI
             {
                 mainWindow.CloseHiddenWindow();
             }
+
+            App.ThemeService.ThemeChanged -= OnThemeChanged;
+        }
+
+        private void OnThemeChanged(object sender, ElementTheme theme)
+        {
+            WindowHelper.SetTheme(this, theme);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                _msgMonitor?.Dispose();
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

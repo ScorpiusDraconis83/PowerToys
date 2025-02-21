@@ -11,8 +11,10 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+
 using global::PowerToys.GPOWrapper;
 using PowerLauncher.Properties;
 using Wox.Infrastructure.Storage;
@@ -28,9 +30,9 @@ namespace PowerLauncher.Plugin
     {
         private static readonly IFileSystem FileSystem = new FileSystem();
         private static readonly IDirectory Directory = FileSystem.Directory;
-        private static readonly object AllPluginsLock = new object();
+        private static readonly Lock AllPluginsLock = new Lock();
 
-        private static readonly CompositeFormat FailedToInitializePluginsTitle = System.Text.CompositeFormat.Parse(Properties.Resources.FailedToInitializePluginsTitle);
+        private static readonly CompositeFormat FailedToInitializePluginsDescription = System.Text.CompositeFormat.Parse(Properties.Resources.FailedToInitializePluginsDescription);
 
         private static IEnumerable<PluginPair> _contextMenuPlugins = new List<PluginPair>();
 
@@ -183,8 +185,8 @@ namespace PowerLauncher.Plugin
 
             if (!failedPlugins.IsEmpty)
             {
-                var failed = string.Join(",", failedPlugins.Select(x => x.Metadata.Name));
-                var description = string.Format(CultureInfo.CurrentCulture, FailedToInitializePluginsTitle, failed);
+                var failed = string.Join(", ", failedPlugins.Select(x => x.Metadata.Name));
+                var description = $"{string.Format(CultureInfo.CurrentCulture, FailedToInitializePluginsDescription, failed)}\n\n{Resources.FailedToInitializePluginsDescriptionPartTwo}";
                 Application.Current.Dispatcher.InvokeAsync(() => API.ShowMsg(Resources.FailedToInitializePluginsTitle, description, string.Empty, false));
             }
         }
@@ -220,8 +222,7 @@ namespace PowerLauncher.Plugin
 
                     if (results != null)
                     {
-                        UpdatePluginMetadata(results, metadata, query);
-                        UpdateResultWithActionKeyword(results, query);
+                        UpdateResults(results, metadata, query);
                     }
                 });
 
@@ -233,28 +234,28 @@ namespace PowerLauncher.Plugin
                 metadata.QueryCount += 1;
                 metadata.AvgQueryTime = metadata.QueryCount == 1 ? milliseconds : (metadata.AvgQueryTime + milliseconds) / 2;
 
-                if (results != null)
-                {
-                    foreach (var result in results)
-                    {
-                        result.Metadata = pair.Metadata;
-                    }
-                }
-
                 return results;
             }
             catch (Exception e)
             {
-                Log.Exception($"Exception for plugin <{pair.Metadata.Name}> when query <{query}>", e, MethodBase.GetCurrentMethod().DeclaringType);
+                // After updating to .NET 9, calling MethodBase.GetCurrentMethod() started crashing when trying
+                // to log methods called from within the OneNote plugin, so we've replaced this instance with typeof(PluginManager).
+                // This should be revised in the future.
+                Log.Exception($"Exception for plugin <{pair.Metadata.Name}> when query <{query}>", e, typeof(PluginManager));
 
                 return new List<Result>();
             }
         }
 
-        private static List<Result> UpdateResultWithActionKeyword(List<Result> results, Query query)
+        private static void UpdateResults(List<Result> results, PluginMetadata metadata, Query query)
         {
             foreach (Result result in results)
             {
+                result.PluginDirectory = metadata.PluginDirectory;
+                result.PluginID = metadata.ID;
+                result.OriginQuery = query;
+                result.Metadata = metadata;
+
                 if (string.IsNullOrEmpty(result.QueryTextDisplay))
                 {
                     result.QueryTextDisplay = result.Title;
@@ -266,8 +267,6 @@ namespace PowerLauncher.Plugin
                     result.QueryTextDisplay = string.Format(CultureInfo.CurrentCulture, "{0} {1}", query.ActionKeyword, result.QueryTextDisplay);
                 }
             }
-
-            return results;
         }
 
         public static void UpdatePluginMetadata(List<Result> results, PluginMetadata metadata, Query query)
