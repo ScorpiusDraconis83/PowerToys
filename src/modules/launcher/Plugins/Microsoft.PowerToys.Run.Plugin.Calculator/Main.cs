@@ -8,15 +8,22 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Windows.Controls;
+
 using ManagedCommon;
 using Microsoft.PowerToys.Run.Plugin.Calculator.Properties;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
+using Wox.Plugin.Logger;
 
 namespace Microsoft.PowerToys.Run.Plugin.Calculator
 {
     public class Main : IPlugin, IPluginI18n, IDisposable, ISettingProvider
     {
+        private const string InputUseEnglishFormat = nameof(InputUseEnglishFormat);
+        private const string OutputUseEnglishFormat = nameof(OutputUseEnglishFormat);
+        private const string ReplaceInput = nameof(ReplaceInput);
+        private const string TrigMode = nameof(TrigMode);
+
         private static readonly CalculateEngine CalculateEngine = new CalculateEngine();
 
         private PluginInitContext Context { get; set; }
@@ -25,6 +32,8 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
 
         private bool _inputUseEnglishFormat;
         private bool _outputUseEnglishFormat;
+        private bool _replaceInput;
+        private static CalculateEngine.TrigMode _trigMode;
 
         public string Name => Resources.wox_plugin_calculator_plugin_name;
 
@@ -40,19 +49,40 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
             // The number examples has to be created at runtime to prevent translation.
-            new PluginAdditionalOption()
+            new PluginAdditionalOption
             {
-                Key = "InputUseEnglishFormat",
+                Key = InputUseEnglishFormat,
                 DisplayLabel = Resources.wox_plugin_calculator_in_en_format,
                 DisplayDescription = string.Format(CultureInfo.CurrentCulture, WoxPluginCalculatorInEnFormatDescription, 1000.55.ToString("N2", new CultureInfo("en-us"))),
                 Value = false,
             },
-            new PluginAdditionalOption()
+            new PluginAdditionalOption
             {
-                Key = "OutputUseEnglishFormat",
+                Key = OutputUseEnglishFormat,
                 DisplayLabel = Resources.wox_plugin_calculator_out_en_format,
                 DisplayDescription = string.Format(CultureInfo.CurrentCulture, WoxPluginCalculatorOutEnFormatDescription, 1000.55.ToString("G", new CultureInfo("en-us"))),
                 Value = false,
+            },
+            new PluginAdditionalOption
+            {
+                Key = ReplaceInput,
+                DisplayLabel = Resources.wox_plugin_calculator_replace_input,
+                DisplayDescription = Resources.wox_plugin_calculator_replace_input_description,
+                Value = true,
+            },
+            new PluginAdditionalOption
+            {
+                Key = TrigMode,
+                DisplayLabel = Resources.wox_plugin_calculator_trig_unit_mode,
+                DisplayDescription = Resources.wox_plugin_calculator_trig_unit_mode_description,
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
+                ComboBoxValue = (int)CalculateEngine.TrigMode.Radians,
+                ComboBoxItems =
+                [
+                    new KeyValuePair<string, string>(Resources.wox_plugin_calculator_trig_unit_radians, "0"),
+                    new KeyValuePair<string, string>(Resources.wox_plugin_calculator_trig_unit_degrees, "1"),
+                    new KeyValuePair<string, string>(Resources.wox_plugin_calculator_trig_unit_gradians, "2"),
+                ],
             },
         };
 
@@ -61,6 +91,7 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
             ArgumentNullException.ThrowIfNull(query);
 
             bool isGlobalQuery = string.IsNullOrEmpty(query.ActionKeyword);
+            bool replaceInput = _replaceInput && !isGlobalQuery && query.Search.EndsWith('=');
             CultureInfo inputCulture = _inputUseEnglishFormat ? new CultureInfo("en-us") : CultureInfo.CurrentCulture;
             CultureInfo outputCulture = _outputUseEnglishFormat ? new CultureInfo("en-us") : CultureInfo.CurrentCulture;
 
@@ -72,6 +103,11 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
 
             NumberTranslator translator = NumberTranslator.Create(inputCulture, new CultureInfo("en-US"));
             var input = translator.Translate(query.Search.Normalize(NormalizationForm.FormKC));
+
+            if (replaceInput)
+            {
+                input = input[..^1];
+            }
 
             if (!CalculateHelper.InputValid(input))
             {
@@ -89,10 +125,16 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
                     // If errorMessage is not default then do error handling
                     return errorMessage == default ? new List<Result>() : ErrorHandler.OnError(IconPath, isGlobalQuery, query.RawQuery, errorMessage);
                 }
+                else if (replaceInput)
+                {
+                    var pluginResult = ResultHelper.CreateResult(result.RoundedResult, IconPath, inputCulture, outputCulture);
+                    Context.API.ChangeQuery($"{query.ActionKeyword} {pluginResult.QueryTextDisplay}");
+                    return new List<Result>();
+                }
 
                 return new List<Result>
                 {
-                    ResultHelper.CreateResult(result.RoundedResult, IconPath, outputCulture),
+                    ResultHelper.CreateResult(result.RoundedResult, IconPath, inputCulture, outputCulture),
                 };
             }
             catch (Mages.Core.ParseException)
@@ -157,18 +199,43 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator
         {
             var inputUseEnglishFormat = false;
             var outputUseEnglishFormat = false;
+            var replaceInput = true;
+            var trigMode = CalculateEngine.TrigMode.Radians;
 
             if (settings != null && settings.AdditionalOptions != null)
             {
-                var optionInputEn = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "InputUseEnglishFormat");
+                var optionInputEn = settings.AdditionalOptions.FirstOrDefault(x => x.Key == InputUseEnglishFormat);
                 inputUseEnglishFormat = optionInputEn?.Value ?? inputUseEnglishFormat;
 
-                var optionOutputEn = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "OutputUseEnglishFormat");
+                var optionOutputEn = settings.AdditionalOptions.FirstOrDefault(x => x.Key == OutputUseEnglishFormat);
                 outputUseEnglishFormat = optionOutputEn?.Value ?? outputUseEnglishFormat;
+
+                var optionReplaceInput = settings.AdditionalOptions.FirstOrDefault(x => x.Key == ReplaceInput);
+                replaceInput = optionReplaceInput?.Value ?? replaceInput;
+
+                try
+                {
+                    var optionTrigMode = settings.AdditionalOptions.FirstOrDefault(x => x.Key == TrigMode);
+                    if (optionTrigMode != null)
+                    {
+                        trigMode = (CalculateEngine.TrigMode)int.Parse(optionTrigMode.ComboBoxValue.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception("Error while trying to load Trigonometry Mode setting: {ex.Message}", ex, GetType());
+                }
             }
 
             _inputUseEnglishFormat = inputUseEnglishFormat;
             _outputUseEnglishFormat = outputUseEnglishFormat;
+            _replaceInput = replaceInput;
+            _trigMode = trigMode;
+        }
+
+        public static CalculateEngine.TrigMode GetTrigMode()
+        {
+            return _trigMode;
         }
 
         public void Dispose()

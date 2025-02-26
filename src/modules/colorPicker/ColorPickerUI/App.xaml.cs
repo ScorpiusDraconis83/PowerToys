@@ -4,11 +4,13 @@
 
 using System;
 using System.ComponentModel.Composition;
+using System.Globalization;
 using System.Threading;
 using System.Windows;
+
 using ColorPicker.Mouse;
-using Common.UI;
 using ManagedCommon;
+using Microsoft.PowerToys.Telemetry;
 
 namespace ColorPickerUI
 {
@@ -17,11 +19,12 @@ namespace ColorPickerUI
     /// </summary>
     public partial class App : Application, IDisposable
     {
+        public ETWTrace EtwTrace { get; private set; } = new ETWTrace();
+
         private Mutex _instanceMutex;
         private static string[] _args;
         private int _powerToysRunnerPid;
         private bool disposedValue;
-        private ThemeManager _themeManager;
 
         private CancellationTokenSource NativeThreadCTS { get; set; }
 
@@ -30,6 +33,19 @@ namespace ColorPickerUI
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            try
+            {
+                string appLanguage = LanguageHelper.LoadLanguage();
+                if (!string.IsNullOrEmpty(appLanguage))
+                {
+                    System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo(appLanguage);
+                }
+            }
+            catch (CultureNotFoundException ex)
+            {
+                Logger.LogError("CultureNotFoundException: " + ex.Message);
+            }
+
             NativeThreadCTS = new CancellationTokenSource();
             ExitToken = NativeThreadCTS.Token;
 
@@ -62,7 +78,6 @@ namespace ColorPickerUI
                 _powerToysRunnerPid = -1;
             }
 
-            _themeManager = new ThemeManager(this);
             base.OnStartup(e);
         }
 
@@ -84,9 +99,8 @@ namespace ColorPickerUI
                 if (disposing)
                 {
                     _instanceMutex?.Dispose();
+                    EtwTrace?.Dispose();
                 }
-
-                _themeManager?.Dispose();
 
                 disposedValue = true;
             }

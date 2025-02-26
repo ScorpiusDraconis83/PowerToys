@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.ObjectModel;
+
 using global::PowerToys.GPOWrapper;
 using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Helpers;
@@ -14,7 +15,7 @@ using Microsoft.Windows.ApplicationModel.Resources;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class LauncherViewModel : Observable
+    public partial class LauncherViewModel : Observable
     {
         public bool IsUpdateAvailable { get; set; }
 
@@ -47,6 +48,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             AddFlyoutMenuItem(ModuleType.RegistryPreview);
             AddFlyoutMenuItem(ModuleType.MeasureTool);
             AddFlyoutMenuItem(ModuleType.ShortcutGuide);
+            AddFlyoutMenuItem(ModuleType.Workspaces);
 
             updatingSettingsConfig = UpdatingSettings.LoadSettings();
             if (updatingSettingsConfig == null)
@@ -76,12 +78,12 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 Label = resourceLoader.GetString(ModuleHelper.GetModuleLabelResourceName(moduleType)),
                 Tag = moduleType,
                 Visible = ModuleHelper.GetIsModuleEnabled(generalSettingsConfig, moduleType),
-                ToolTip = GetModuleTooltip(moduleType),
+                ToolTip = GetModuleToolTip(moduleType),
                 Icon = ModuleHelper.GetModuleTypeFluentIconName(moduleType),
             });
         }
 
-        private string GetModuleTooltip(ModuleType moduleType)
+        private string GetModuleToolTip(ModuleType moduleType)
         {
             return moduleType switch
             {
@@ -89,8 +91,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 ModuleType.FancyZones => SettingsRepository<FancyZonesSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.FancyzonesEditorHotkey.Value.ToString(),
                 ModuleType.PowerLauncher => SettingsRepository<PowerLauncherSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.OpenPowerLauncher.ToString(),
                 ModuleType.PowerOCR => SettingsRepository<PowerOcrSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.ActivationShortcut.ToString(),
+                ModuleType.Workspaces => SettingsRepository<WorkspacesSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.Hotkey.Value.ToString(),
                 ModuleType.MeasureTool => SettingsRepository<MeasureToolSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.ActivationShortcut.ToString(),
-                ModuleType.ShortcutGuide => SettingsRepository<ShortcutGuideSettings>.GetInstance(new SettingsUtils()).SettingsConfig.Properties.OpenShortcutGuide.ToString(),
+                ModuleType.ShortcutGuide => GetShortcutGuideToolTip(),
                 _ => string.Empty,
             };
         }
@@ -103,6 +106,14 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             {
                 item.Visible = ModuleHelper.GetIsModuleEnabled(generalSettingsConfig, item.Tag);
             }
+        }
+
+        private string GetShortcutGuideToolTip()
+        {
+            var shortcutGuideSettings = SettingsRepository<ShortcutGuideSettings>.GetInstance(new SettingsUtils()).SettingsConfig;
+            return shortcutGuideSettings.Properties.UseLegacyPressWinKeyBehavior.Value
+                ? "Win"
+                : shortcutGuideSettings.Properties.OpenShortcutGuide.ToString();
         }
 
         internal void StartBugReport()

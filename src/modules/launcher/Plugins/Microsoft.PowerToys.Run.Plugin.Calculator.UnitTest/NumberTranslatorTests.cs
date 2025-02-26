@@ -4,6 +4,7 @@
 
 using System;
 using System.Globalization;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
@@ -73,6 +74,7 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         [DataRow("5,2+6", "5.2+6")]
         [DataRow("round(2,5)", "round(2.5)")]
         [DataRow("3,3333", "3.3333")]
+        [DataRow("max(2;3)", "max(2,3)")]
         public void Translate_NoErrors_WhenCalled(string input, string expectedResult)
         {
             // Arrange
@@ -151,6 +153,23 @@ namespace Microsoft.PowerToys.Run.Plugin.Calculator.UnitTests
         [DataRow("fr-FR", "123.01 + 52.30", "123.01 + 52.30")]
         [DataRow("fr-FR", "123.001 + 52.30", "123.001 + 52.30")]
         public void Translate_NoRemovalOfLeadingZeroesOnEdgeCases(string sourceCultureName, string input, string expectedResult)
+        {
+            // Arrange
+            var translator = NumberTranslator.Create(new CultureInfo(sourceCultureName, false), new CultureInfo("en-US", false));
+
+            // Act
+            var result = translator.Translate(input);
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedResult, result);
+        }
+
+        [DataTestMethod]
+        [DataRow("en-US", "0xF000", "0xF000")]
+        [DataRow("en-US", "0xf4572220", "4099351072")]
+        [DataRow("en-US", "0x12345678", "305419896")]
+        public void Translate_LargeHexadecimalNumbersToDecimal(string sourceCultureName, string input, string expectedResult)
         {
             // Arrange
             var translator = NumberTranslator.Create(new CultureInfo(sourceCultureName, false), new CultureInfo("en-US", false));

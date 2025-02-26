@@ -5,9 +5,11 @@
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 using Microsoft.PowerToys.Settings.UI.Library.Utilities;
+using Settings.UI.Library.Attributes;
 
 namespace Microsoft.PowerToys.Settings.UI.Library
 {
@@ -18,15 +20,18 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         public bool Startup { get; set; }
 
         // Gets or sets a value indicating whether the powertoy elevated.
+        [CmdConfigureIgnoreAttribute]
         [JsonPropertyName("is_elevated")]
         public bool IsElevated { get; set; }
 
         // Gets or sets a value indicating whether powertoys should run elevated.
         [JsonPropertyName("run_elevated")]
+        [CmdConfigureIgnoreAttribute]
         public bool RunElevated { get; set; }
 
         // Gets or sets a value indicating whether is admin.
         [JsonPropertyName("is_admin")]
+        [CmdConfigureIgnoreAttribute]
         public bool IsAdmin { get; set; }
 
         // Gets or sets a value indicating whether is warnings of elevated apps enabled.
@@ -39,20 +44,30 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         // Gets or sets system theme name.
         [JsonPropertyName("system_theme")]
+        [CmdConfigureIgnore]
         public string SystemTheme { get; set; }
 
         // Gets or sets powertoys version number.
         [JsonPropertyName("powertoys_version")]
+        [CmdConfigureIgnore]
         public string PowertoysVersion { get; set; }
 
         [JsonPropertyName("action_name")]
+        [CmdConfigureIgnore]
         public string CustomActionName { get; set; }
 
         [JsonPropertyName("enabled")]
+        [CmdConfigureIgnore]
         public EnabledModules Enabled { get; set; }
+
+        [JsonPropertyName("show_new_updates_toast_notification")]
+        public bool ShowNewUpdatesToastNotification { get; set; }
 
         [JsonPropertyName("download_updates_automatically")]
         public bool AutoDownloadUpdates { get; set; }
+
+        [JsonPropertyName("show_whats_new_after_updates")]
+        public bool ShowWhatsNewAfterUpdates { get; set; }
 
         [JsonPropertyName("enable_experimentation")]
         public bool EnableExperimentation { get; set; }
@@ -63,6 +78,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             IsAdmin = false;
             EnableWarningsElevatedApps = true;
             IsElevated = false;
+            ShowNewUpdatesToastNotification = true;
             AutoDownloadUpdates = false;
             EnableExperimentation = true;
             Theme = "system";
@@ -89,7 +105,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         private static string DefaultPowertoysVersion()
         {
-            return interop.CommonManaged.GetProductVersion();
+            return global::PowerToys.Interop.CommonManaged.GetProductVersion();
         }
 
         // This function is to implement the ISettingsConfig interface.

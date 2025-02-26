@@ -33,6 +33,8 @@ bld/
 # Visual Studio 2017 auto generated files
 Generated\ Files/
 
+Generated/
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
@@ -348,3 +350,6 @@ src/common/Telemetry/*.etl
 
 # Generated installer file for Monaco source files.
 /installer/PowerToysSetup/MonacoSRC.wxs
+
+# MSBuildCache
+/MSBuildCacheLogs/
