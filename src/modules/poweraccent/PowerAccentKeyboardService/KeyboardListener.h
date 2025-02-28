@@ -16,6 +16,7 @@ namespace winrt::PowerToys::PowerAccentKeyboardService::implementation
     struct PowerAccentSettings
     {
         PowerAccentActivationKey activationKey{ PowerAccentActivationKey::Both };
+        bool doNotActivateOnGameMode{ true };
         std::chrono::milliseconds inputTime{ 300 }; // Should match with UI.Library.PowerAccentSettings.DefaultInputTimeMs
         std::vector<std::wstring> excludedApps;
     };
@@ -36,6 +37,7 @@ namespace winrt::PowerToys::PowerAccentKeyboardService::implementation
         void SetIsLanguageLetterDelegate(IsLanguageLetter IsLanguageLetterDelegate);
 
         void UpdateActivationKey(int32_t activationKey);
+        void UpdateDoNotActivateOnGameMode(bool doNotActivateOnGameMode);
         void UpdateInputTime(int32_t inputTime);
         void UpdateExcludedApps(std::wstring_view excludedApps);
 
@@ -44,6 +46,7 @@ namespace winrt::PowerToys::PowerAccentKeyboardService::implementation
     private:
         bool OnKeyDown(KBDLLHOOKSTRUCT info) noexcept;
         bool OnKeyUp(KBDLLHOOKSTRUCT info) noexcept;
+        bool IsSuppressedByGameMode();
         bool IsForegroundAppExcluded();
 
         static inline KeyboardListener* s_instance;
@@ -106,7 +109,8 @@ namespace winrt::PowerToys::PowerAccentKeyboardService::implementation
                                                                LetterKey::VK_MINUS,
                                                                LetterKey::VK_SLASH_,
                                                                LetterKey::VK_DIVIDE_,
-                                                               LetterKey::VK_MULTIPLY_, };
+                                                               LetterKey::VK_MULTIPLY_,
+                                                               LetterKey::VK_BACKSLASH, };
         LetterKey letterPressed{};
 
         static inline const std::vector<TriggerKey> triggers = { TriggerKey::Right, TriggerKey::Left, TriggerKey::Space };

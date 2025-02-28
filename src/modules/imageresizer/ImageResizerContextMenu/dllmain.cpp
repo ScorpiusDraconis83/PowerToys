@@ -7,6 +7,7 @@
 #include <shobjidl_core.h>
 #include <string>
 
+#include <common/telemetry/EtwTrace/EtwTrace.h>
 #include <common/utils/elevation.h>
 #include <common/utils/process_path.h>
 #include <common/utils/resources.h>
@@ -20,6 +21,7 @@
 using namespace Microsoft::WRL;
 
 HINSTANCE g_hInst = 0;
+Shared::Trace::ETWTrace trace(L"ImageResizerContextMenu");
 
 #define BUFSIZE 4096 * 4
 
@@ -51,10 +53,7 @@ public:
     // IExplorerCommand
     IFACEMETHODIMP GetTitle(_In_opt_ IShellItemArray* items, _Outptr_result_nullonfailure_ PWSTR* name)
     {
-        wchar_t strResizePictures[64] = { 0 };
-        LoadString(g_hInst, IDS_RESIZE_PICTURES_TITLE, strResizePictures, ARRAYSIZE(strResizePictures));
-
-        return SHStrDup(strResizePictures, name);
+        return SHStrDup(context_menu_caption.c_str(), name);
     }
 
     IFACEMETHODIMP GetIcon(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* icon)
@@ -137,6 +136,7 @@ public:
     IFACEMETHODIMP Invoke(_In_opt_ IShellItemArray* selection, _In_opt_ IBindCtx*) noexcept
     try
     {
+        trace.UpdateState(true);
 
         Trace::Invoked();
         HRESULT hr = S_OK;
@@ -147,6 +147,9 @@ public:
         }
 
         Trace::InvokedRet(hr);
+
+        trace.UpdateState(false);
+        trace.Flush();
 
         return hr;
     }
@@ -225,12 +228,12 @@ private:
         if (UuidCreate(&temp_uuid) == RPC_S_UUID_NO_ADDRESS)
         {
             auto val = get_last_error_message(GetLastError());
-            Logger::warn(L"UuidCreate can not create guid. {}", val.has_value() ? val.value() : L"");
+            Logger::warn(L"UuidCreate cannot create guid. {}", val.has_value() ? val.value() : L"");
         }
         else if (UuidToString(&temp_uuid, reinterpret_cast<RPC_WSTR*>(& uuid_chars)) != RPC_S_OK)
         {
             auto val = get_last_error_message(GetLastError());
-            Logger::warn(L"UuidToString can not convert to string. {}", val.has_value() ? val.value() : L"");
+            Logger::warn(L"UuidToString cannot convert to string. {}", val.has_value() ? val.value() : L"");
         }
 
         if (uuid_chars != nullptr)
@@ -272,7 +275,7 @@ private:
 
     std::thread create_pipe_thread;
     HANDLE hPipe = INVALID_HANDLE_VALUE;
-    std::wstring app_name = L"ImageResizer";
+    std::wstring context_menu_caption = GET_RESOURCE_STRING_FALLBACK(IDS_IMAGERESIZER_CONTEXT_MENU_ENTRY, L"Resize with Image Resizer");
 };
 
 CoCreatableClass(ImageResizerContextMenuCommand)

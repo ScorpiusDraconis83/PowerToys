@@ -14,6 +14,7 @@ using System.Security;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
+
 using Microsoft.Plugin.Program.Logger;
 using Microsoft.Plugin.Program.Utils;
 using Microsoft.Win32;
@@ -21,6 +22,7 @@ using Wox.Infrastructure;
 using Wox.Infrastructure.FileSystemHelper;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
+
 using DirectoryWrapper = Wox.Infrastructure.FileSystemHelper.DirectoryWrapper;
 
 namespace Microsoft.Plugin.Program.Programs
@@ -930,15 +932,15 @@ namespace Microsoft.Plugin.Program.Programs
 
         private static bool TryGetIcoPathForRunCommandProgram(Win32Program program, out string icoPath)
         {
+            icoPath = null;
+
             if (program.AppType != ApplicationType.RunCommand)
             {
-                icoPath = null;
                 return false;
             }
 
             if (string.IsNullOrEmpty(program.FullPath))
             {
-                icoPath = null;
                 return false;
             }
 
@@ -946,6 +948,11 @@ namespace Microsoft.Plugin.Program.Programs
             try
             {
                 var redirectionPath = ReparsePoint.GetTarget(program.FullPath);
+                if (string.IsNullOrEmpty(redirectionPath))
+                {
+                    return false;
+                }
+
                 icoPath = ExpandEnvironmentVariables(redirectionPath);
                 return true;
             }

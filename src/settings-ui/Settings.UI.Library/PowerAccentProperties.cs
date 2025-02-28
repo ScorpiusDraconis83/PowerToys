@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Text.Json.Serialization;
+
 using Microsoft.PowerToys.Settings.UI.Library.Enumerations;
 
 namespace Microsoft.PowerToys.Settings.UI.Library
@@ -11,6 +12,9 @@ namespace Microsoft.PowerToys.Settings.UI.Library
     {
         [JsonPropertyName("activation_key")]
         public PowerAccentActivationKey ActivationKey { get; set; }
+
+        [JsonPropertyName("do_not_activate_on_game_mode")]
+        public bool DoNotActivateOnGameMode { get; set; }
 
         [JsonPropertyName("toolbar_position")]
         public StringProperty ToolbarPosition { get; set; }
@@ -36,6 +40,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         public PowerAccentProperties()
         {
             ActivationKey = PowerAccentActivationKey.Both;
+            DoNotActivateOnGameMode = true;
             ToolbarPosition = "Top center";
             InputTime = new IntProperty(PowerAccentSettings.DefaultInputTimeMs);
             SelectedLang = "ALL";

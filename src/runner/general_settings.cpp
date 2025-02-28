@@ -15,7 +15,9 @@
 // TODO: would be nice to get rid of these globals, since they're basically cached json settings
 static std::wstring settings_theme = L"system";
 static bool run_as_elevated = false;
+static bool show_new_updates_toast_notification = true;
 static bool download_updates_automatically = true;
+static bool show_whats_new_after_updates = true;
 static bool enable_experimentation = true;
 static bool enable_warnings_elevated_apps = true;
 
@@ -38,7 +40,9 @@ json::JsonObject GeneralSettings::to_json()
 
     result.SetNamedValue(L"is_elevated", json::value(isElevated));
     result.SetNamedValue(L"run_elevated", json::value(isRunElevated));
+    result.SetNamedValue(L"show_new_updates_toast_notification", json::value(showNewUpdatesToastNotification));
     result.SetNamedValue(L"download_updates_automatically", json::value(downloadUpdatesAutomatically));
+    result.SetNamedValue(L"show_whats_new_after_updates", json::value(showWhatsNewAfterUpdates));
     result.SetNamedValue(L"enable_experimentation", json::value(enableExperimentation));
     result.SetNamedValue(L"is_admin", json::value(isAdmin));
     result.SetNamedValue(L"enable_warnings_elevated_apps", json::value(enableWarningsElevatedApps));
@@ -58,8 +62,10 @@ json::JsonObject load_general_settings()
         settings_theme = L"system";
     }
     run_as_elevated = loaded.GetNamedBoolean(L"run_elevated", false);
+    show_new_updates_toast_notification = loaded.GetNamedBoolean(L"show_new_updates_toast_notification", true);
     download_updates_automatically = loaded.GetNamedBoolean(L"download_updates_automatically", true) && check_user_is_admin();
-    enable_experimentation = loaded.GetNamedBoolean(L"enable_experimentation",true);
+    show_whats_new_after_updates = loaded.GetNamedBoolean(L"show_whats_new_after_updates", true);
+    enable_experimentation = loaded.GetNamedBoolean(L"enable_experimentation", true);
     enable_warnings_elevated_apps = loaded.GetNamedBoolean(L"enable_warnings_elevated_apps", true);
 
     return loaded;
@@ -73,7 +79,9 @@ GeneralSettings get_general_settings()
         .isRunElevated = run_as_elevated,
         .isAdmin = is_user_admin,
         .enableWarningsElevatedApps = enable_warnings_elevated_apps,
+        .showNewUpdatesToastNotification = show_new_updates_toast_notification,
         .downloadUpdatesAutomatically = download_updates_automatically && is_user_admin,
+        .showWhatsNewAfterUpdates = show_whats_new_after_updates,
         .enableExperimentation = enable_experimentation,
         .theme = settings_theme,
         .systemTheme = WindowsColors::is_dark_mode() ? L"dark" : L"light",
@@ -97,13 +105,28 @@ void apply_general_settings(const json::JsonObject& general_configs, bool save)
 
     enable_warnings_elevated_apps = general_configs.GetNamedBoolean(L"enable_warnings_elevated_apps", true);
 
+    show_new_updates_toast_notification = general_configs.GetNamedBoolean(L"show_new_updates_toast_notification", true);
+
     download_updates_automatically = general_configs.GetNamedBoolean(L"download_updates_automatically", true);
+    show_whats_new_after_updates = general_configs.GetNamedBoolean(L"show_whats_new_after_updates", true);
 
     enable_experimentation = general_configs.GetNamedBoolean(L"enable_experimentation", true);
 
+    // apply_general_settings is called by the runner's WinMain, so we can just force the run at startup gpo rule here.
+    auto gpo_run_as_startup = powertoys_gpo::getConfiguredRunAtStartupValue();
+
     if (json::has(general_configs, L"startup", json::JsonValueType::Boolean))
     {
-        const bool startup = general_configs.GetNamedBoolean(L"startup");
+        bool startup = general_configs.GetNamedBoolean(L"startup");
+
+        if (gpo_run_as_startup == powertoys_gpo::gpo_rule_configured_enabled)
+        {
+            startup = true;
+        }
+        else if (gpo_run_as_startup == powertoys_gpo::gpo_rule_configured_disabled)
+        {
+            startup = false;
+        }
 
         if (startup)
         {
@@ -136,7 +159,9 @@ void apply_general_settings(const json::JsonObject& general_configs, bool save)
     else
     {
         delete_auto_start_task_for_this_user();
-        create_auto_start_task_for_this_user(run_as_elevated);
+        if (gpo_run_as_startup == powertoys_gpo::gpo_rule_configured_enabled || gpo_run_as_startup == powertoys_gpo::gpo_rule_configured_not_configured) {
+            create_auto_start_task_for_this_user(run_as_elevated);
+        }
     }
 
     if (json::has(general_configs, L"enabled"))
@@ -230,8 +255,7 @@ void start_enabled_powertoys()
             {
                 std::wstring disable_module_name{ static_cast<std::wstring_view>(disabled_element.Key()) };
 
-                if (powertoys_gpo_configuration.find(disable_module_name)!=powertoys_gpo_configuration.end() 
-                    && (powertoys_gpo_configuration[disable_module_name]==powertoys_gpo::gpo_rule_configured_enabled || powertoys_gpo_configuration[disable_module_name]==powertoys_gpo::gpo_rule_configured_disabled))
+                if (powertoys_gpo_configuration.find(disable_module_name) != powertoys_gpo_configuration.end() && (powertoys_gpo_configuration[disable_module_name] == powertoys_gpo::gpo_rule_configured_enabled || powertoys_gpo_configuration[disable_module_name] == powertoys_gpo::gpo_rule_configured_disabled))
                 {
                     // If gpo forces the enabled setting, no need to check the setting for this PowerToy. It will be applied later on this function.
                     continue;

@@ -18,7 +18,10 @@ using System.Threading.Tasks;
 //     2023- Included in PowerToys.
 // </history>
 using MouseWithoutBorders.Class;
+using MouseWithoutBorders.Core;
 using MouseWithoutBorders.Form;
+
+using Thread = MouseWithoutBorders.Core.Thread;
 
 namespace MouseWithoutBorders
 {
@@ -26,8 +29,10 @@ namespace MouseWithoutBorders
     {
         private static readonly DATA KeybdPackage = new();
         private static readonly DATA MousePackage = new();
-        private static ulong inputEventCount;
-        private static ulong invalidPackageCount;
+#pragma warning disable SA1307 // Accessible fields should begin with upper-case names
+        internal static ulong inputEventCount;
+        internal static ulong invalidPackageCount;
+#pragma warning restore SA1307
         internal static int MOVE_MOUSE_RELATIVE = 100000;
         internal static int XY_BY_PIXEL = 300000;
 
@@ -67,29 +72,29 @@ namespace MouseWithoutBorders
 
                 if (switchByMouseEnabled && Sk != null && (DesMachineID == MachineID || !Setting.Values.MoveMouseRelatively) && e.dwFlags == WM_MOUSEMOVE)
                 {
-                    Point p = MoveToMyNeighbourIfNeeded(e.X, e.Y, desMachineID);
+                    Point p = MachineStuff.MoveToMyNeighbourIfNeeded(e.X, e.Y, MachineStuff.desMachineID);
 
                     if (!p.IsEmpty)
                     {
                         HasSwitchedMachineSinceLastCopy = true;
 
-                        Common.LogDebug(string.Format(
+                        Logger.LogDebug(string.Format(
                             CultureInfo.CurrentCulture,
                             "***** Host Machine: newDesMachineIdEx set = [{0}]. Mouse is now at ({1},{2})",
-                            newDesMachineIdEx,
+                            MachineStuff.newDesMachineIdEx,
                             e.X,
                             e.Y));
 
                         myLastX = e.X;
                         myLastY = e.Y;
 
-                        PrepareToSwitchToMachine(newDesMachineIdEx, p);
+                        PrepareToSwitchToMachine(MachineStuff.newDesMachineIdEx, p);
                     }
                 }
 
-                if (desMachineID != MachineID && SwitchLocation.Count <= 0)
+                if (MachineStuff.desMachineID != MachineID && MachineStuff.SwitchLocation.Count <= 0)
                 {
-                    MousePackage.Des = desMachineID;
+                    MousePackage.Des = MachineStuff.desMachineID;
                     MousePackage.Type = PackageType.Mouse;
                     MousePackage.Md.dwFlags = e.dwFlags;
                     MousePackage.Md.WheelDelta = e.WheelDelta;
@@ -102,8 +107,8 @@ namespace MouseWithoutBorders
                     }
                     else
                     {
-                        MousePackage.Md.X = (e.X - primaryScreenBounds.Left) * 65535 / screenWidth;
-                        MousePackage.Md.Y = (e.Y - primaryScreenBounds.Top) * 65535 / screenHeight;
+                        MousePackage.Md.X = (e.X - MachineStuff.primaryScreenBounds.Left) * 65535 / screenWidth;
+                        MousePackage.Md.Y = (e.Y - MachineStuff.primaryScreenBounds.Top) * 65535 / screenHeight;
                     }
 
                     SkSend(MousePackage, null, false);
@@ -117,7 +122,7 @@ namespace MouseWithoutBorders
 
                     if (actualLastPos != Common.LastPos)
                     {
-                        Common.LogDebug($"Mouse cursor has moved unexpectedly: Expected: {Common.LastPos}, actual: {actualLastPos}.");
+                        Logger.LogDebug($"Mouse cursor has moved unexpectedly: Expected: {Common.LastPos}, actual: {actualLastPos}.");
                         Common.LastPos = actualLastPos;
                     }
                 }
@@ -138,77 +143,77 @@ namespace MouseWithoutBorders
             }
             catch (Exception ex)
             {
-                Log(ex);
+                Logger.Log(ex);
             }
         }
 
-        private static bool IsSwitchingByMouseEnabled()
+        internal static bool IsSwitchingByMouseEnabled()
         {
             return (EasyMouseOption)Setting.Values.EasyMouse == EasyMouseOption.Enable || InputHook.EasyMouseKeyDown;
         }
 
         internal static void PrepareToSwitchToMachine(ID newDesMachineID, Point desMachineXY)
         {
-            LogDebug($"PrepareToSwitchToMachine: newDesMachineID = {newDesMachineID}, desMachineXY = {desMachineXY}");
+            Logger.LogDebug($"PrepareToSwitchToMachine: newDesMachineID = {newDesMachineID}, desMachineXY = {desMachineXY}");
 
-            if (((GetTick() - lastJump < 100) && (GetTick() - lastJump > 0)) || desMachineID == ID.ALL)
+            if (((GetTick() - MachineStuff.lastJump < 100) && (GetTick() - MachineStuff.lastJump > 0)) || MachineStuff.desMachineID == ID.ALL)
             {
-                LogDebug("PrepareToSwitchToMachine: lastJump");
+                Logger.LogDebug("PrepareToSwitchToMachine: lastJump");
                 return;
             }
 
-            lastJump = GetTick();
+            MachineStuff.lastJump = GetTick();
 
-            string newDesMachineName = NameFromID(newDesMachineID);
+            string newDesMachineName = MachineStuff.NameFromID(newDesMachineID);
 
             if (!IsConnectedTo(newDesMachineID))
             {// Connection lost, cancel switching
-                LogDebug("No active connection found for " + newDesMachineName);
+                Logger.LogDebug("No active connection found for " + newDesMachineName);
 
                 // ShowToolTip("No active connection found for [" + newDesMachineName + "]!", 500);
             }
             else
             {
-                Common.newDesMachineID = newDesMachineID;
-                SwitchLocation.X = desMachineXY.X;
-                SwitchLocation.Y = desMachineXY.Y;
-                SwitchLocation.ResetCount();
+                MachineStuff.newDesMachineID = newDesMachineID;
+                MachineStuff.SwitchLocation.X = desMachineXY.X;
+                MachineStuff.SwitchLocation.Y = desMachineXY.Y;
+                MachineStuff.SwitchLocation.ResetCount();
                 _ = EvSwitch.Set();
 
                 // PostMessage(mainForm.Handle, WM_SWITCH, IntPtr.Zero, IntPtr.Zero);
-                if (newDesMachineID != DragMachine)
+                if (newDesMachineID != DragDrop.DragMachine)
                 {
-                    if (!IsDragging && !IsDropping)
+                    if (!DragDrop.IsDragging && !DragDrop.IsDropping)
                     {
-                        if (MouseDown && !RunOnLogonDesktop && !RunOnScrSaverDesktop)
+                        if (DragDrop.MouseDown && !RunOnLogonDesktop && !RunOnScrSaverDesktop)
                         {
-                            DragDropStep02();
+                            DragDrop.DragDropStep02();
                         }
                     }
-                    else if (DragMachine != (ID)1)
+                    else if (DragDrop.DragMachine != (ID)1)
                     {
-                        ChangeDropMachine();
+                        DragDrop.ChangeDropMachine();
                     }
                 }
                 else
                 {
-                    DragDropStep11();
+                    DragDrop.DragDropStep11();
                 }
 
                 // Change des machine
-                if (desMachineID != newDesMachineID)
+                if (MachineStuff.desMachineID != newDesMachineID)
                 {
-                    LogDebug("MouseEvent: Switching to new machine:" + newDesMachineName);
+                    Logger.LogDebug("MouseEvent: Switching to new machine:" + newDesMachineName);
 
                     // Ask current machine to hide the Mouse cursor
-                    if (newDesMachineID != ID.ALL && desMachineID != MachineID)
+                    if (newDesMachineID != ID.ALL && MachineStuff.desMachineID != MachineID)
                     {
-                        SendPackage(desMachineID, PackageType.HideMouse);
+                        SendPackage(MachineStuff.desMachineID, PackageType.HideMouse);
                     }
 
                     DesMachineID = newDesMachineID;
 
-                    if (desMachineID == MachineID)
+                    if (MachineStuff.desMachineID == MachineID)
                     {
                         if (GetTick() - clipboardCopiedTime < BIG_CLIPBOARD_DATA_TIMEOUT)
                         {
@@ -219,7 +224,7 @@ namespace MouseWithoutBorders
                     else
                     {
                         // Ask the new active machine to get clipboard data (if the data is too big)
-                        SendPackage(desMachineID, PackageType.MachineSwitched);
+                        SendPackage(MachineStuff.desMachineID, PackageType.MachineSwitched);
                     }
 
                     _ = Interlocked.Increment(ref switchCount);
@@ -244,15 +249,15 @@ namespace MouseWithoutBorders
             try
             {
                 PaintCount = 0;
-                if (desMachineID != newDesMachineID)
+                if (MachineStuff.desMachineID != MachineStuff.newDesMachineID)
                 {
-                    LogDebug("KeybdEvent: Switching to new machine...");
-                    DesMachineID = newDesMachineID;
+                    Logger.LogDebug("KeybdEvent: Switching to new machine...");
+                    DesMachineID = MachineStuff.newDesMachineID;
                 }
 
-                if (desMachineID != MachineID)
+                if (MachineStuff.desMachineID != MachineID)
                 {
-                    KeybdPackage.Des = desMachineID;
+                    KeybdPackage.Des = MachineStuff.desMachineID;
                     KeybdPackage.Type = PackageType.Keyboard;
                     KeybdPackage.Kd = e;
                     KeybdPackage.DateTime = GetTick();
@@ -265,7 +270,7 @@ namespace MouseWithoutBorders
             }
             catch (Exception ex)
             {
-                Log(ex);
+                Logger.Log(ex);
             }
         }
     }

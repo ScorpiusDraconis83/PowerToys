@@ -10,8 +10,9 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
 {
     public static class NativeMethods
     {
-        private const int GWL_STYLE = -16;
         private const int WS_POPUP = 1 << 31; // 0x80000000
+        internal const int GWL_STYLE = -16;
+        internal const int WS_CAPTION = 0x00C00000;
         internal const int SPI_GETDESKWALLPAPER = 0x0073;
         internal const int SW_SHOWNORMAL = 1;
         internal const int SW_SHOWMAXIMIZED = 3;
@@ -46,6 +47,12 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
 
         [DllImport("Comdlg32.dll", CharSet = CharSet.Unicode)]
         internal static extern bool GetOpenFileName([In, Out] OpenFileName openFileName);
+
+        [DllImport("comdlg32.dll", CharSet = CharSet.Auto, EntryPoint = "ChooseFont", SetLastError = true)]
+        internal static extern bool ChooseFont(IntPtr lpChooseFont);
+
+        [DllImport("comdlg32.dll", SetLastError = true)]
+        internal static extern int CommDlgExtendedError();
 
 #pragma warning disable CA1401 // P/Invokes should not be visible
         [DllImport("user32.dll")]

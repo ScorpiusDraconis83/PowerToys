@@ -16,6 +16,7 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
         {
             switch (moduleType)
             {
+                case ModuleType.Workspaces: return "Workspaces/ModuleTitle";
                 case ModuleType.PowerAccent: return "QuickAccent/ModuleTitle";
                 case ModuleType.PowerOCR: return "TextExtractor/ModuleTitle";
                 case ModuleType.FindMyMouse:
@@ -30,10 +31,14 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
         {
             switch (moduleType)
             {
-                case ModuleType.MousePointerCrosshairs: return "ms-appx:///Assets/Settings/FluentIcons/FluentIconsMouseCrosshairs.png";
-                case ModuleType.MeasureTool: return "ms-appx:///Assets/Settings/FluentIcons/FluentIconsScreenRuler.png";
-                case ModuleType.PowerLauncher: return $"ms-appx:///Assets/Settings/FluentIcons/FluentIconsPowerToysRun.png";
-                default: return $"ms-appx:///Assets/Settings/FluentIcons/FluentIcons{moduleType}.png";
+                case ModuleType.AdvancedPaste: return "ms-appx:///Assets/Settings/Icons/AdvancedPaste.png";
+                case ModuleType.Workspaces: return "ms-appx:///Assets/Settings/Icons/Workspaces.png";
+                case ModuleType.PowerOCR: return "ms-appx:///Assets/Settings/Icons/TextExtractor.png";
+                case ModuleType.PowerAccent: return "ms-appx:///Assets/Settings/Icons/QuickAccent.png";
+                case ModuleType.MousePointerCrosshairs: return "ms-appx:///Assets/Settings/Icons/MouseCrosshairs.png";
+                case ModuleType.MeasureTool: return "ms-appx:///Assets/Settings/Icons/ScreenRuler.png";
+                case ModuleType.PowerLauncher: return $"ms-appx:///Assets/Settings/Icons/PowerToysRun.png";
+                default: return $"ms-appx:///Assets/Settings/Icons/{moduleType}.png";
             }
         }
 
@@ -41,10 +46,10 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
         {
             switch (moduleType)
             {
+                case ModuleType.AdvancedPaste: return generalSettingsConfig.Enabled.AdvancedPaste;
                 case ModuleType.AlwaysOnTop: return generalSettingsConfig.Enabled.AlwaysOnTop;
                 case ModuleType.Awake: return generalSettingsConfig.Enabled.Awake;
                 case ModuleType.ColorPicker: return generalSettingsConfig.Enabled.ColorPicker;
-                case ModuleType.CmdNotFound: return generalSettingsConfig.Enabled.CmdNotFound;
                 case ModuleType.CropAndLock: return generalSettingsConfig.Enabled.CropAndLock;
                 case ModuleType.EnvironmentVariables: return generalSettingsConfig.Enabled.EnvironmentVariables;
                 case ModuleType.FancyZones: return generalSettingsConfig.Enabled.FancyZones;
@@ -57,15 +62,17 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
                 case ModuleType.MouseJump: return generalSettingsConfig.Enabled.MouseJump;
                 case ModuleType.MousePointerCrosshairs: return generalSettingsConfig.Enabled.MousePointerCrosshairs;
                 case ModuleType.MouseWithoutBorders: return generalSettingsConfig.Enabled.MouseWithoutBorders;
-                case ModuleType.PastePlain: return generalSettingsConfig.Enabled.PastePlain;
+                case ModuleType.NewPlus: return generalSettingsConfig.Enabled.NewPlus;
                 case ModuleType.Peek: return generalSettingsConfig.Enabled.Peek;
                 case ModuleType.PowerRename: return generalSettingsConfig.Enabled.PowerRename;
                 case ModuleType.PowerLauncher: return generalSettingsConfig.Enabled.PowerLauncher;
                 case ModuleType.PowerAccent: return generalSettingsConfig.Enabled.PowerAccent;
+                case ModuleType.Workspaces: return generalSettingsConfig.Enabled.Workspaces;
                 case ModuleType.RegistryPreview: return generalSettingsConfig.Enabled.RegistryPreview;
                 case ModuleType.MeasureTool: return generalSettingsConfig.Enabled.MeasureTool;
                 case ModuleType.ShortcutGuide: return generalSettingsConfig.Enabled.ShortcutGuide;
-                case ModuleType.PowerOCR: return generalSettingsConfig.Enabled.PowerOCR;
+                case ModuleType.PowerOCR: return generalSettingsConfig.Enabled.PowerOcr;
+                case ModuleType.ZoomIt: return generalSettingsConfig.Enabled.ZoomIt;
                 default: return false;
             }
         }
@@ -74,10 +81,10 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
         {
             switch (moduleType)
             {
+                case ModuleType.AdvancedPaste: generalSettingsConfig.Enabled.AdvancedPaste = isEnabled; break;
                 case ModuleType.AlwaysOnTop: generalSettingsConfig.Enabled.AlwaysOnTop = isEnabled; break;
                 case ModuleType.Awake: generalSettingsConfig.Enabled.Awake = isEnabled; break;
                 case ModuleType.ColorPicker: generalSettingsConfig.Enabled.ColorPicker = isEnabled; break;
-                case ModuleType.CmdNotFound: generalSettingsConfig.Enabled.CmdNotFound = isEnabled; break;
                 case ModuleType.CropAndLock: generalSettingsConfig.Enabled.CropAndLock = isEnabled; break;
                 case ModuleType.EnvironmentVariables: generalSettingsConfig.Enabled.EnvironmentVariables = isEnabled; break;
                 case ModuleType.FancyZones: generalSettingsConfig.Enabled.FancyZones = isEnabled; break;
@@ -90,15 +97,17 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
                 case ModuleType.MouseJump: generalSettingsConfig.Enabled.MouseJump = isEnabled; break;
                 case ModuleType.MousePointerCrosshairs: generalSettingsConfig.Enabled.MousePointerCrosshairs = isEnabled; break;
                 case ModuleType.MouseWithoutBorders: generalSettingsConfig.Enabled.MouseWithoutBorders = isEnabled; break;
-                case ModuleType.PastePlain: generalSettingsConfig.Enabled.PastePlain = isEnabled; break;
+                case ModuleType.NewPlus: generalSettingsConfig.Enabled.NewPlus = isEnabled; break;
                 case ModuleType.Peek: generalSettingsConfig.Enabled.Peek = isEnabled; break;
                 case ModuleType.PowerRename: generalSettingsConfig.Enabled.PowerRename = isEnabled; break;
                 case ModuleType.PowerLauncher: generalSettingsConfig.Enabled.PowerLauncher = isEnabled; break;
                 case ModuleType.PowerAccent: generalSettingsConfig.Enabled.PowerAccent = isEnabled; break;
+                case ModuleType.Workspaces: generalSettingsConfig.Enabled.Workspaces = isEnabled; break;
                 case ModuleType.RegistryPreview: generalSettingsConfig.Enabled.RegistryPreview = isEnabled; break;
                 case ModuleType.MeasureTool: generalSettingsConfig.Enabled.MeasureTool = isEnabled; break;
                 case ModuleType.ShortcutGuide: generalSettingsConfig.Enabled.ShortcutGuide = isEnabled; break;
-                case ModuleType.PowerOCR: generalSettingsConfig.Enabled.PowerOCR = isEnabled; break;
+                case ModuleType.PowerOCR: generalSettingsConfig.Enabled.PowerOcr = isEnabled; break;
+                case ModuleType.ZoomIt: generalSettingsConfig.Enabled.ZoomIt = isEnabled; break;
             }
         }
 
@@ -106,10 +115,10 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
         {
             switch (moduleType)
             {
+                case ModuleType.AdvancedPaste: return GPOWrapper.GetConfiguredAdvancedPasteEnabledValue();
                 case ModuleType.AlwaysOnTop: return GPOWrapper.GetConfiguredAlwaysOnTopEnabledValue();
                 case ModuleType.Awake: return GPOWrapper.GetConfiguredAwakeEnabledValue();
                 case ModuleType.ColorPicker: return GPOWrapper.GetConfiguredColorPickerEnabledValue();
-                case ModuleType.CmdNotFound: return GPOWrapper.GetConfiguredCmdNotFoundEnabledValue();
                 case ModuleType.CropAndLock: return GPOWrapper.GetConfiguredCropAndLockEnabledValue();
                 case ModuleType.EnvironmentVariables: return GPOWrapper.GetConfiguredEnvironmentVariablesEnabledValue();
                 case ModuleType.FancyZones: return GPOWrapper.GetConfiguredFancyZonesEnabledValue();
@@ -122,60 +131,29 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
                 case ModuleType.MouseJump: return GPOWrapper.GetConfiguredMouseJumpEnabledValue();
                 case ModuleType.MousePointerCrosshairs: return GPOWrapper.GetConfiguredMousePointerCrosshairsEnabledValue();
                 case ModuleType.MouseWithoutBorders: return GPOWrapper.GetConfiguredMouseWithoutBordersEnabledValue();
-                case ModuleType.PastePlain: return GPOWrapper.GetConfiguredPastePlainEnabledValue();
+                case ModuleType.NewPlus: return GPOWrapper.GetConfiguredNewPlusEnabledValue();
                 case ModuleType.Peek: return GPOWrapper.GetConfiguredPeekEnabledValue();
                 case ModuleType.PowerRename: return GPOWrapper.GetConfiguredPowerRenameEnabledValue();
                 case ModuleType.PowerLauncher: return GPOWrapper.GetConfiguredPowerLauncherEnabledValue();
                 case ModuleType.PowerAccent: return GPOWrapper.GetConfiguredQuickAccentEnabledValue();
+                case ModuleType.Workspaces: return GPOWrapper.GetConfiguredWorkspacesEnabledValue();
                 case ModuleType.RegistryPreview: return GPOWrapper.GetConfiguredRegistryPreviewEnabledValue();
                 case ModuleType.MeasureTool: return GPOWrapper.GetConfiguredScreenRulerEnabledValue();
                 case ModuleType.ShortcutGuide: return GPOWrapper.GetConfiguredShortcutGuideEnabledValue();
                 case ModuleType.PowerOCR: return GPOWrapper.GetConfiguredTextExtractorEnabledValue();
+                case ModuleType.ZoomIt: return GPOWrapper.GetConfiguredZoomItEnabledValue();
                 default: return GpoRuleConfigured.Unavailable;
             }
-        }
-
-        public static Color GetModuleAccentColor(ModuleType moduleType)
-        {
-            return moduleType switch
-            {
-                ModuleType.AlwaysOnTop => Color.FromArgb(255, 74, 196, 242), // #4ac4f2
-                ModuleType.Awake => Color.FromArgb(255, 40, 177, 233), // #28b1e9
-                ModuleType.ColorPicker => Color.FromArgb(255, 7, 129, 211), // #0781d3
-                ModuleType.CmdNotFound => Color.FromArgb(255, 31, 164, 227), // #1fa4e3
-                ModuleType.CropAndLock => Color.FromArgb(255, 32, 166, 228), // #20a6e4
-                ModuleType.EnvironmentVariables => Color.FromArgb(255, 16, 132, 208), // #1084d0
-                ModuleType.FancyZones => Color.FromArgb(255, 65, 209, 247), // #41d1f7
-                ModuleType.FileLocksmith => Color.FromArgb(255, 245, 161, 20), // #f5a114
-                ModuleType.FindMyMouse => Color.FromArgb(255, 104, 109, 112), // #686d70
-                ModuleType.Hosts => Color.FromArgb(255, 16, 132, 208), // #1084d0
-                ModuleType.ImageResizer => Color.FromArgb(255, 85, 207, 248), // #55cff8
-                ModuleType.KeyboardManager => Color.FromArgb(255, 224, 231, 238), // #e0e7ee
-                ModuleType.MouseHighlighter => Color.FromArgb(255, 17, 126, 199), // #117ec7
-                ModuleType.MouseJump => Color.FromArgb(255, 240, 240, 239), // #f0f0ef
-                ModuleType.MousePointerCrosshairs => Color.FromArgb(255, 25, 115, 182), // #1973b6
-                ModuleType.MouseWithoutBorders => Color.FromArgb(255, 31, 164, 227), // #1fa4e3
-                ModuleType.PastePlain => Color.FromArgb(255, 243, 156, 16), // #f39c10
-                ModuleType.Peek => Color.FromArgb(255, 255, 214, 103), // #ffd667
-                ModuleType.PowerRename => Color.FromArgb(255, 43, 186, 243), // #2bbaf3
-                ModuleType.PowerLauncher => Color.FromArgb(255, 51, 191, 240), // #33bff0
-                ModuleType.PowerAccent => Color.FromArgb(255, 84, 89, 92), // #54595c
-                ModuleType.RegistryPreview => Color.FromArgb(255, 17, 80, 138), // #11508a
-                ModuleType.MeasureTool => Color.FromArgb(255, 135, 144, 153), // #879099
-                ModuleType.ShortcutGuide => Color.FromArgb(255, 193, 202, 209), // #c1cad1
-                ModuleType.PowerOCR => Color.FromArgb(255, 24, 153, 224), // #1899e0
-                _ => Color.FromArgb(255, 255, 255, 255), // never called, all values listed above
-            };
         }
 
         public static System.Type GetModulePageType(ModuleType moduleType)
         {
             return moduleType switch
             {
+                ModuleType.AdvancedPaste => typeof(AdvancedPastePage),
                 ModuleType.AlwaysOnTop => typeof(AlwaysOnTopPage),
                 ModuleType.Awake => typeof(AwakePage),
                 ModuleType.ColorPicker => typeof(ColorPickerPage),
-                ModuleType.CmdNotFound => typeof(CmdNotFoundPage),
                 ModuleType.CropAndLock => typeof(CropAndLockPage),
                 ModuleType.EnvironmentVariables => typeof(EnvironmentVariablesPage),
                 ModuleType.FancyZones => typeof(FancyZonesPage),
@@ -188,15 +166,17 @@ namespace Microsoft.PowerToys.Settings.UI.Helpers
                 ModuleType.MouseJump => typeof(MouseUtilsPage),
                 ModuleType.MousePointerCrosshairs => typeof(MouseUtilsPage),
                 ModuleType.MouseWithoutBorders => typeof(MouseWithoutBordersPage),
-                ModuleType.PastePlain => typeof(PastePlainPage),
+                ModuleType.NewPlus => typeof(NewPlusPage),
                 ModuleType.Peek => typeof(PeekPage),
                 ModuleType.PowerRename => typeof(PowerRenamePage),
                 ModuleType.PowerLauncher => typeof(PowerLauncherPage),
                 ModuleType.PowerAccent => typeof(PowerAccentPage),
+                ModuleType.Workspaces => typeof(WorkspacesPage),
                 ModuleType.RegistryPreview => typeof(RegistryPreviewPage),
                 ModuleType.MeasureTool => typeof(MeasureToolPage),
                 ModuleType.ShortcutGuide => typeof(ShortcutGuidePage),
                 ModuleType.PowerOCR => typeof(PowerOcrPage),
+                ModuleType.ZoomIt => typeof(ZoomItPage),
                 _ => typeof(DashboardPage), // never called, all values listed above
             };
         }

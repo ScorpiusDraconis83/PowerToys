@@ -1,9 +1,14 @@
-﻿// Copyright (c) Brice Lambson
+﻿#pragma warning disable IDE0073
+// Copyright (c) Brice Lambson
 // The Brice Lambson licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.  Code forked from Brice Lambson's https://github.com/bricelam/ImageResizer/
+#pragma warning restore IDE0073
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
+
 using Common.UI;
 using ImageResizer.Helpers;
 using ImageResizer.Models;
@@ -55,6 +60,10 @@ namespace ImageResizer.ViewModels
 
         public Settings Settings { get; }
 
+        public IEnumerable<ResizeFit> ResizeFitValues => Enum.GetValues(typeof(ResizeFit)).Cast<ResizeFit>();
+
+        public IEnumerable<ResizeUnit> ResizeUnitValues => Enum.GetValues(typeof(ResizeUnit)).Cast<ResizeUnit>();
+
         public ICommand ResizeCommand { get; }
 
         public ICommand CancelCommand { get; }
@@ -63,14 +72,9 @@ namespace ImageResizer.ViewModels
 
         public ICommand EnterKeyPressedCommand { get; private set; }
 
-        public bool TryingToResizeGifFiles
-        {
-            get
-            {
-                // Any of the files is a gif.
-                return _batch.Files.Any(filename => filename.EndsWith(".gif", System.StringComparison.InvariantCultureIgnoreCase));
-            }
-        }
+        // Any of the files is a gif
+        public bool TryingToResizeGifFiles =>
+                _batch.Files.Any(filename => filename.EndsWith(".gif", System.StringComparison.InvariantCultureIgnoreCase));
 
         public void Resize()
         {

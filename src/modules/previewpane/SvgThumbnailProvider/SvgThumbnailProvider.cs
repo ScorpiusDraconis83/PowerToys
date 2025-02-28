@@ -6,7 +6,9 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
+
 using Common.Utilities;
+using ManagedCommon;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -142,7 +144,7 @@ namespace Microsoft.PowerToys.ThumbnailHandler.Svg
                 thumbnailDone.Set();
             };
 
-            var webView2Options = new CoreWebView2EnvironmentOptions("--block-new-web-contents --disable-features=RendererAppContainer");
+            var webView2Options = new CoreWebView2EnvironmentOptions("--block-new-web-contents");
             ConfiguredTaskAwaitable<CoreWebView2Environment>.ConfiguredTaskAwaiter
                webView2EnvironmentAwaiter = CoreWebView2Environment
                    .CreateAsync(userDataFolder: _webView2UserDataFolder, options: webView2Options)
@@ -197,8 +199,10 @@ namespace Microsoft.PowerToys.ThumbnailHandler.Svg
                         _browser.NavigateToString(SvgContents);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Logger.LogError($"Failed running webView2Environment completed for {FilePath} : ", ex);
+                    thumbnailDone.Set();
                 }
             });
 

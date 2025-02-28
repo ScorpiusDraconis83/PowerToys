@@ -19,8 +19,11 @@ using System.Threading;
 // </history>
 using Microsoft.Win32;
 using MouseWithoutBorders.Class;
+using MouseWithoutBorders.Core;
 using MouseWithoutBorders.Form;
 using Windows.UI.Input.Preview.Injection;
+
+using Thread = MouseWithoutBorders.Core.Thread;
 
 namespace MouseWithoutBorders
 {
@@ -43,7 +46,7 @@ namespace MouseWithoutBorders
         internal static void UpdateMachineTimeAndID()
         {
             Common.MachineName = Common.MachineName.Trim();
-            _ = Common.MachinePool.TryUpdateMachineID(Common.MachineName, Common.MachineID, true);
+            _ = MachineStuff.MachinePool.TryUpdateMachineID(Common.MachineName, Common.MachineID, true);
         }
 
         private static void InitializeMachinePoolFromSettings()
@@ -56,13 +59,13 @@ namespace MouseWithoutBorders
                     info[i].Name = info[i].Name.Trim();
                 }
 
-                Common.MachinePool.Initialize(info);
-                Common.MachinePool.ResetIPAddressesForDeadMachines(true);
+                MachineStuff.MachinePool.Initialize(info);
+                MachineStuff.MachinePool.ResetIPAddressesForDeadMachines(true);
             }
             catch (Exception ex)
             {
-                Common.Log(ex);
-                Common.MachinePool.Clear();
+                Logger.Log(ex);
+                MachineStuff.MachinePool.Clear();
             }
         }
 
@@ -71,20 +74,20 @@ namespace MouseWithoutBorders
             try
             {
                 GetMachineName();
-                DesMachineID = NewDesMachineID = MachineID;
+                DesMachineID = MachineStuff.NewDesMachineID = MachineID;
 
                 // MessageBox.Show(machineID.ToString(CultureInfo.CurrentCulture)); // For test
                 InitializeMachinePoolFromSettings();
 
                 Common.MachineName = Common.MachineName.Trim();
-                _ = Common.MachinePool.LearnMachine(Common.MachineName);
-                _ = Common.MachinePool.TryUpdateMachineID(Common.MachineName, Common.MachineID, true);
+                _ = MachineStuff.MachinePool.LearnMachine(Common.MachineName);
+                _ = MachineStuff.MachinePool.TryUpdateMachineID(Common.MachineName, Common.MachineID, true);
 
-                Common.UpdateMachinePoolStringSetting();
+                MachineStuff.UpdateMachinePoolStringSetting();
             }
             catch (Exception e)
             {
-                Log(e);
+                Logger.Log(e);
             }
         }
 
@@ -102,13 +105,13 @@ namespace MouseWithoutBorders
             {
                 Common.KeyCorrupted = true;
                 Setting.Values.MyKey = Common.MyKey = Common.CreateRandomKey();
-                Common.Log(e.Message);
+                Logger.Log(e.Message);
             }
             catch (CryptographicException e)
             {
                 Common.KeyCorrupted = true;
                 Setting.Values.MyKey = Common.MyKey = Common.CreateRandomKey();
-                Common.Log(e.Message);
+                Logger.Log(e.Message);
             }
 
             try
@@ -123,7 +126,7 @@ namespace MouseWithoutBorders
             catch (EntryPointNotFoundException)
             {
                 NativeMethods.InjectMouseInputAvailable = false;
-                Common.Log($"{nameof(NativeMethods.InjectMouseInputAvailable)} = false");
+                Logger.Log($"{nameof(NativeMethods.InjectMouseInputAvailable)} = false");
             }
 
             bool dummy = Setting.Values.DrawMouseEx;
@@ -149,9 +152,9 @@ namespace MouseWithoutBorders
 
             if (e.Mode is PowerModes.Resume or PowerModes.Suspend)
             {
-                Common.TelemetryLogTrace($"{nameof(SystemEvents_PowerModeChanged)}: {e.Mode}", SeverityLevel.Information);
+                Logger.TelemetryLogTrace($"{nameof(SystemEvents_PowerModeChanged)}: {e.Mode}", SeverityLevel.Information);
                 LastResumeSuspendTime = DateTime.UtcNow;
-                SwitchToMultipleMode(false, true);
+                MachineStuff.SwitchToMultipleMode(false, true);
             }
         }
 
@@ -206,7 +209,7 @@ namespace MouseWithoutBorders
             }
             catch (Exception e)
             {
-                Log(e);
+                Logger.Log(e);
             }
         }
 
@@ -230,13 +233,13 @@ namespace MouseWithoutBorders
                 VK.RCONTROL, VK.RMENU, VK.RWIN, VK.SHIFT, VK.MENU, VK.CONTROL,
             };
 
-            LogDebug("***** ReleaseAllKeys has been called! *****:");
+            Logger.LogDebug("***** ReleaseAllKeys has been called! *****:");
 
             foreach (VK vk in keys)
             {
                 if ((NativeMethods.GetAsyncKeyState((IntPtr)vk) & 0x8000) != 0)
                 {
-                    LogDebug(vk.ToString() + " is down, release it...");
+                    Logger.LogDebug(vk.ToString() + " is down, release it...");
                     Hook?.ResetLastSwitchKeys(); // Sticky key can turn ALL PC mode on (CtrlCtrlCtrl)
                     kd.wVk = (int)vk;
                     InputSimulation.SendKey(kd);
@@ -247,7 +250,7 @@ namespace MouseWithoutBorders
 
         private static void NetworkChange_NetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
         {
-            LogDebug("NetworkAvailabilityEventArgs.IsAvailable: " + e.IsAvailable.ToString(CultureInfo.InvariantCulture));
+            Logger.LogDebug("NetworkAvailabilityEventArgs.IsAvailable: " + e.IsAvailable.ToString(CultureInfo.InvariantCulture));
             Common.WndProcCounter++;
             ScheduleReopenSocketsDueToNetworkChanges(!e.IsAvailable);
         }

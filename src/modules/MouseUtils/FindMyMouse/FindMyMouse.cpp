@@ -65,6 +65,7 @@ protected:
 
     bool m_destroyed = false;
     FindMyMouseActivationMethod m_activationMethod = FIND_MY_MOUSE_DEFAULT_ACTIVATION_METHOD;
+    bool m_includeWinKey = FIND_MY_MOUSE_DEFAULT_INCLUDE_WIN_KEY;
     bool m_doNotActivateOnGameMode = FIND_MY_MOUSE_DEFAULT_DO_NOT_ACTIVATE_ON_GAME_MODE;
     int m_sonarRadius = FIND_MY_MOUSE_DEFAULT_SPOTLIGHT_RADIUS;
     int m_sonarZoomFactor = FIND_MY_MOUSE_DEFAULT_SPOTLIGHT_INITIAL_ZOOM;
@@ -74,6 +75,11 @@ protected:
     int m_shakeMinimumDistance = FIND_MY_MOUSE_DEFAULT_SHAKE_MINIMUM_DISTANCE;
     static constexpr int FinalAlphaDenominator = 100;
     winrt::DispatcherQueueController m_dispatcherQueueController{ nullptr };
+
+    // Don't consider movements started past these milliseconds to detect shaking.
+    int m_shakeIntervalMs = FIND_MY_MOUSE_DEFAULT_SHAKE_INTERVAL_MS;
+    // By which factor must travelled distance be than the diagonal of the rectangle containing the movements. (value in percent)
+    int m_shakeFactor = FIND_MY_MOUSE_DEFAULT_SHAKE_FACTOR;
 
 private:
 
@@ -87,10 +93,6 @@ private:
     // Raw Input may give relative or absolute values. Need to take each case into account.
     bool m_seenAnAbsoluteMousePosition = false;
     POINT m_lastAbsolutePosition = { 0, 0 };
-    // Don't consider movements started past these milliseconds to detect shaking.
-    static constexpr LONG ShakeIntervalMs = 1000;
-    // By which factor must travelled distance be than the diagonal of the rectangle containing the movements.
-    static constexpr float ShakeFactor = 4.0f;
 
     static inline byte GetSign(LONG const& num)
     {
@@ -145,6 +147,7 @@ private:
     void OnMouseTimer();
 
     void DetectShake();
+    bool KeyboardInputCanActivate();
 
     void StartSonar();
     void StopSonar();
@@ -351,7 +354,7 @@ void SuperSonar<D>::OnSonarKeyboardInput(RAWINPUT const& input)
         break;
 
     case SonarState::ControlUp1:
-        if (pressed)
+        if (pressed && KeyboardInputCanActivate())
         {
             auto now = GetTickCount64();
             auto doubleClickInterval = now - m_lastKeyTime;
@@ -398,7 +401,7 @@ void SuperSonar<D>::OnSonarKeyboardInput(RAWINPUT const& input)
 template<typename D>
 void SuperSonar<D>::DetectShake()
 {
-    ULONGLONG shakeStartTick = GetTickCount64() - ShakeIntervalMs;
+    ULONGLONG shakeStartTick = GetTickCount64() - m_shakeIntervalMs;
     
     // Prune the story of movements for those movements that started too long ago.
     std::erase_if(m_movementHistory, [shakeStartTick](const PointerRecentMovement& movement) { return movement.tick < shakeStartTick; });
@@ -429,12 +432,18 @@ void SuperSonar<D>::DetectShake()
     double rectangleHeight =  static_cast<double>(maxY) - minY;
 
     double diagonal = sqrt(rectangleWidth * rectangleWidth + rectangleHeight * rectangleHeight);
-    if (diagonal > 0 && distanceTravelled / diagonal > ShakeFactor)
+    if (diagonal > 0 && distanceTravelled / diagonal > (m_shakeFactor/100.f))
     {
         m_movementHistory.clear();
         StartSonar();
     }
 
+}
+
+template<typename D>
+bool SuperSonar<D>::KeyboardInputCanActivate()
+{
+    return !m_includeWinKey || (GetAsyncKeyState(VK_LWIN) & 0x8000) || (GetAsyncKeyState(VK_RWIN) & 0x8000);
 }
 
 template<typename D>
@@ -761,12 +770,15 @@ public:
             m_backgroundColor = settings.backgroundColor;
             m_spotlightColor = settings.spotlightColor;
             m_activationMethod = settings.activationMethod;
+            m_includeWinKey = settings.includeWinKey;
             m_doNotActivateOnGameMode = settings.doNotActivateOnGameMode;
             m_fadeDuration = settings.animationDurationMs > 0 ? settings.animationDurationMs : 1;
             m_finalAlphaNumerator = settings.overlayOpacity;
             m_sonarZoomFactor = settings.spotlightInitialZoom;
             m_excludedApps = settings.excludedApps;
             m_shakeMinimumDistance = settings.shakeMinimumDistance;
+            m_shakeIntervalMs = settings.shakeIntervalMs;
+            m_shakeFactor = settings.shakeFactor;
         }
         else
         {
@@ -788,12 +800,15 @@ public:
                     m_backgroundColor = localSettings.backgroundColor;
                     m_spotlightColor = localSettings.spotlightColor;
                     m_activationMethod = localSettings.activationMethod;
+                    m_includeWinKey = localSettings.includeWinKey;
                     m_doNotActivateOnGameMode = localSettings.doNotActivateOnGameMode;
                     m_fadeDuration = localSettings.animationDurationMs > 0 ? localSettings.animationDurationMs : 1;
                     m_finalAlphaNumerator = localSettings.overlayOpacity;
                     m_sonarZoomFactor = localSettings.spotlightInitialZoom;
                     m_excludedApps = localSettings.excludedApps;
                     m_shakeMinimumDistance = localSettings.shakeMinimumDistance;
+                    m_shakeIntervalMs = localSettings.shakeIntervalMs;
+                    m_shakeFactor = localSettings.shakeFactor;
                     UpdateMouseSnooping(); // For the shake mouse activation method
 
                     // Apply new settings to runtime composition objects.

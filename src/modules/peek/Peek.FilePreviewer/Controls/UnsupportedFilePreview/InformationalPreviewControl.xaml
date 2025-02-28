@@ -9,7 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid ColumnSpacing="24">
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="Icon" Width="Auto" />
             <ColumnDefinition x:Name="FileInfo" Width="*" />
@@ -20,19 +20,19 @@
             Grid.Column="0"
             Width="180"
             Height="180"
-            Margin="0,24,24,24"
             Source="{x:Bind Source.IconPreview, Mode=OneWay}" />
 
         <StackPanel
             Grid.Column="1"
             VerticalAlignment="Center"
-            Spacing="5">
+            Spacing="4">
 
             <TextBlock
-                FontSize="26"
-                FontWeight="SemiBold"
+                MaxLines="3"
+                Style="{StaticResource TitleTextBlockStyle}"
                 Text="{x:Bind Source.FileName, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis">
+                TextTrimming="CharacterEllipsis"
+                TextWrapping="Wrap">
                 <ToolTipService.ToolTip>
                     <ToolTip Content="{x:Bind Source.FileName, Mode=OneWay}" />
                 </ToolTipService.ToolTip>
@@ -42,7 +42,11 @@
                     <ToolTip Content="{x:Bind FormatFileType(Source.FileType), Mode=OneWay}" />
                 </ToolTipService.ToolTip>
             </TextBlock>
-            <TextBlock Text="{x:Bind FormatFileSize(Source.FileSize), Mode=OneWay}" />
+            <TextBlock Text="{x:Bind FormatFileSize(Source.FileSize), Mode=OneWay}">
+                <ToolTipService.ToolTip>
+                    <ToolTip Content="{x:Bind FormatFileSize(Source.FileSize), Mode=OneWay}" />
+                </ToolTipService.ToolTip>
+            </TextBlock>
             <TextBlock Text="{x:Bind FormatFileDateModified(Source.DateModified), Mode=OneWay}">
                 <ToolTipService.ToolTip>
                     <ToolTip Content="{x:Bind FormatFileDateModified(Source.DateModified), Mode=OneWay}" />

@@ -11,8 +11,7 @@ properties:
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: vsPackage
       directives:
-        description: Install Visual Studio 2022 (any edition is OK)
-        allowPrerelease: true
+        description: Install Visual Studio 2022 Community (Any edition will work)
       settings:
         id: Microsoft.VisualStudio.2022.Community
         source: winget

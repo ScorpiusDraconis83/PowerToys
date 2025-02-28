@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Windows.Forms;
 
@@ -22,6 +23,7 @@ using System.Windows.Forms;
 // </history>
 using Microsoft.Win32;
 using MouseWithoutBorders.Class;
+using MouseWithoutBorders.Core;
 using static System.Windows.Forms.Control;
 
 namespace MouseWithoutBorders
@@ -60,7 +62,7 @@ namespace MouseWithoutBorders
                     Process p = Process.GetCurrentProcess();
                     string procInfo = $"{p.PrivateMemorySize64 / 1024 / 1024}MB, {p.TotalProcessorTime}, {Environment.ProcessorCount}.";
                     string threadStacks = $"{procInfo} {Thread.DumpThreadsStack()}";
-                    Common.TelemetryLogTrace(threadStacks, SeverityLevel.Error);
+                    Logger.TelemetryLogTrace(threadStacks, SeverityLevel.Error);
                     break;
                 }
 
@@ -71,6 +73,10 @@ namespace MouseWithoutBorders
 
         private static void HelperThread()
         {
+            // SuppressFlow fixes an issue on service mode, where the helper process can't get enough permissions to be started again.
+            // More details can be found on: https://github.com/microsoft/PowerToys/pull/36892
+            using var asyncFlowControl = System.Threading.ExecutionContext.SuppressFlow();
+
             try
             {
                 while (true)
@@ -82,35 +88,35 @@ namespace MouseWithoutBorders
                         break;
                     }
 
-                    if (Common.NewDesMachineID != Common.MachineID && Common.NewDesMachineID != ID.ALL)
+                    if (MachineStuff.NewDesMachineID != Common.MachineID && MachineStuff.NewDesMachineID != ID.ALL)
                     {
                         HideMouseCursor(false);
                         Common.MainFormDotEx(true);
                     }
                     else
                     {
-                        if (Common.SwitchLocation.Count > 0)
+                        if (MachineStuff.SwitchLocation.Count > 0)
                         {
-                            Common.SwitchLocation.Count--;
+                            MachineStuff.SwitchLocation.Count--;
 
                             // When we want to move mouse by pixels, we add 300k to x and y (search for XY_BY_PIXEL for other related code).
-                            Common.LogDebug($"+++++ Moving mouse to {Common.SwitchLocation.X}, {Common.SwitchLocation.Y}");
+                            Logger.LogDebug($"+++++ Moving mouse to {MachineStuff.SwitchLocation.X}, {MachineStuff.SwitchLocation.Y}");
 
                             // MaxXY = 65535 so 100k is safe.
-                            if (Common.SwitchLocation.X > XY_BY_PIXEL - 100000 || Common.SwitchLocation.Y > XY_BY_PIXEL - 100000)
+                            if (MachineStuff.SwitchLocation.X > XY_BY_PIXEL - 100000 || MachineStuff.SwitchLocation.Y > XY_BY_PIXEL - 100000)
                             {
-                                InputSimulation.MoveMouse(Common.SwitchLocation.X - XY_BY_PIXEL, Common.SwitchLocation.Y - XY_BY_PIXEL);
+                                InputSimulation.MoveMouse(MachineStuff.SwitchLocation.X - XY_BY_PIXEL, MachineStuff.SwitchLocation.Y - XY_BY_PIXEL);
                             }
                             else
                             {
-                                InputSimulation.MoveMouseEx(Common.SwitchLocation.X, Common.SwitchLocation.Y);
+                                InputSimulation.MoveMouseEx(MachineStuff.SwitchLocation.X, MachineStuff.SwitchLocation.Y);
                             }
 
                             Common.MainFormDot();
                         }
                     }
 
-                    if (Common.NewDesMachineID == Common.MachineID)
+                    if (MachineStuff.NewDesMachineID == Common.MachineID)
                     {
                         ReleaseAllKeys();
                     }
@@ -118,21 +124,21 @@ namespace MouseWithoutBorders
             }
             catch (Exception e)
             {
-                Log(e);
+                Logger.Log(e);
             }
 
             signalHelperToExit = false;
-            LogDebug("^^^Helper Thread exiting...^^^");
+            Logger.LogDebug("^^^Helper Thread exiting...^^^");
         }
 
         internal static void MainFormDotEx(bool bCheckTS)
         {
-            LogDebug("***** MainFormDotEx:");
+            Logger.LogDebug("***** MainFormDotEx:");
 
             if (!Common.RunOnLogonDesktop && !Common.RunOnScrSaverDesktop)
             {
-                int left = Common.PrimaryScreenBounds.Left + ((Common.PrimaryScreenBounds.Right - Common.PrimaryScreenBounds.Left) / 2) - 1;
-                int top = Setting.Values.HideMouse ? 3 : Common.PrimaryScreenBounds.Top + ((Common.PrimaryScreenBounds.Bottom - Common.PrimaryScreenBounds.Top) / 2);
+                int left = MachineStuff.PrimaryScreenBounds.Left + ((MachineStuff.PrimaryScreenBounds.Right - MachineStuff.PrimaryScreenBounds.Left) / 2) - 1;
+                int top = Setting.Values.HideMouse ? 3 : MachineStuff.PrimaryScreenBounds.Top + ((MachineStuff.PrimaryScreenBounds.Bottom - MachineStuff.PrimaryScreenBounds.Top) / 2);
 
                 Common.MainFormVisible = true;
 
@@ -177,7 +183,7 @@ namespace MouseWithoutBorders
                     }
                     catch (Exception e)
                     {
-                        Log(e);
+                        Logger.Log(e);
                     }
                 }
             }
@@ -187,13 +193,13 @@ namespace MouseWithoutBorders
 
         internal static void MainForm3Pixels()
         {
-            LogDebug("***** MainFormDotLarge:");
+            Logger.LogDebug("***** MainFormDotLarge:");
 
             DoSomethingInUIThread(
                 () =>
             {
-                MainForm.Left = Common.PrimaryScreenBounds.Left + ((Common.PrimaryScreenBounds.Right - Common.PrimaryScreenBounds.Left) / 2) - 2;
-                MainForm.Top = Setting.Values.HideMouse ? 3 : Common.PrimaryScreenBounds.Top + ((Common.PrimaryScreenBounds.Bottom - Common.PrimaryScreenBounds.Top) / 2) - 1;
+                MainForm.Left = MachineStuff.PrimaryScreenBounds.Left + ((MachineStuff.PrimaryScreenBounds.Right - MachineStuff.PrimaryScreenBounds.Left) / 2) - 2;
+                MainForm.Top = Setting.Values.HideMouse ? 3 : MachineStuff.PrimaryScreenBounds.Top + ((MachineStuff.PrimaryScreenBounds.Bottom - MachineStuff.PrimaryScreenBounds.Top) / 2) - 1;
                 MainForm.Width = 3;
                 MainForm.Height = 3;
                 MainForm.Opacity = 0.11D;
@@ -224,8 +230,8 @@ namespace MouseWithoutBorders
                 {
                     _ = Common.SendMessageToHelper(0x408, IntPtr.Zero, IntPtr.Zero, false);
 
-                    MainForm.Left = Common.PrimaryScreenBounds.Left + ((Common.PrimaryScreenBounds.Right - Common.PrimaryScreenBounds.Left) / 2) - 1;
-                    MainForm.Top = Setting.Values.HideMouse ? 3 : Common.PrimaryScreenBounds.Top + ((Common.PrimaryScreenBounds.Bottom - Common.PrimaryScreenBounds.Top) / 2);
+                    MainForm.Left = MachineStuff.PrimaryScreenBounds.Left + ((MachineStuff.PrimaryScreenBounds.Right - MachineStuff.PrimaryScreenBounds.Left) / 2) - 1;
+                    MainForm.Top = Setting.Values.HideMouse ? 3 : MachineStuff.PrimaryScreenBounds.Top + ((MachineStuff.PrimaryScreenBounds.Bottom - MachineStuff.PrimaryScreenBounds.Top) / 2);
                     MainForm.Width = 1;
                     MainForm.Height = 1;
                     MainForm.Opacity = 0.15;
@@ -253,7 +259,7 @@ namespace MouseWithoutBorders
             }
             catch (Exception e)
             {
-                Log(e);
+                Logger.Log(e);
             }
         }
 
@@ -276,7 +282,7 @@ namespace MouseWithoutBorders
                 }
                 catch (Exception e)
                 {
-                    Log(e);
+                    Logger.Log(e);
                     _ = Common.SendMessageToHelper(SharedConst.QUIT_CMD, IntPtr.Zero, IntPtr.Zero);
                 }
 
@@ -290,7 +296,7 @@ namespace MouseWithoutBorders
 
             if (!Common.IpcChannelCreated)
             {
-                TelemetryLogTrace($"{nameof(Common.IpcChannelCreated)} = {Common.IpcChannelCreated}. {GetStackTrace(new StackTrace())}", SeverityLevel.Warning);
+                Logger.TelemetryLogTrace($"{nameof(Common.IpcChannelCreated)} = {Common.IpcChannelCreated}. {Logger.GetStackTrace(new StackTrace())}", SeverityLevel.Warning);
                 return;
             }
 
@@ -316,12 +322,12 @@ namespace MouseWithoutBorders
                 var processes = Process.GetProcessesByName(HelperProcessName);
                 if (processes?.Length == 0)
                 {
-                    Log("Unable to start helper process.");
+                    Logger.Log("Unable to start helper process.");
                     Common.ShowToolTip("Error starting Mouse Without Borders Helper, clipboard sharing will not work!", 5000, ToolTipIcon.Error);
                 }
                 else
                 {
-                    Log("Helper process started.");
+                    Logger.Log("Helper process started.");
                 }
             }
             else
@@ -329,11 +335,11 @@ namespace MouseWithoutBorders
                 var processes = Process.GetProcessesByName(HelperProcessName);
                 if (processes?.Length > 0)
                 {
-                    Log("Helper process found running.");
+                    Logger.Log("Helper process found running.");
                 }
                 else
                 {
-                    Log("Invalid helper process found running.");
+                    Logger.Log("Invalid helper process found running.");
                     Common.ShowToolTip("Error finding Mouse Without Borders Helper, clipboard sharing will not work!", 5000, ToolTipIcon.Error);
                 }
             }
@@ -353,7 +359,7 @@ namespace MouseWithoutBorders
 
             if (log)
             {
-                Common.LogDebug($"SendMessageToHelper: HelperWindow={h}, Return={rv}, msg={msg}, w={wparam.ToInt32()}, l={lparam.ToInt32()}, Post={!wait}");
+                Logger.LogDebug($"SendMessageToHelper: HelperWindow={h}, Return={rv}, msg={msg}, w={wparam.ToInt32()}, l={lparam.ToInt32()}, Post={!wait}");
             }
 
             return rv;
@@ -375,7 +381,7 @@ namespace MouseWithoutBorders
             log += $"{Setting.Values.Username}/{GetDebugInfo(MyKey)}\r\n";
             log += $"{MachineName}/{MachineID}/{DesMachineID}\r\n";
             log += $"Id: {Setting.Values.DeviceId}\r\n";
-            log += $"Matrix: {string.Join(",", MachineMatrix)}\r\n";
+            log += $"Matrix: {string.Join(",", MachineStuff.MachineMatrix)}\r\n";
             log += $"McPool: {Setting.Values.MachinePoolString}\r\n";
 
             log += "\r\nOPTIONS:\r\n";
@@ -423,7 +429,7 @@ namespace MouseWithoutBorders
 
             log += "Last 10 trace messages:\r\n";
 
-            log += string.Join(Environment.NewLine, LogCounter.Select(item => $"({item.Value}): {item.Key}").Take(10));
+            log += string.Join(Environment.NewLine, Logger.LogCounter.Select(item => $"({item.Value}): {item.Key}").Take(10));
 
             log += "\r\n=============================================================================================================================";
 
@@ -438,7 +444,31 @@ namespace MouseWithoutBorders
                 {
                     _ = Common.ImpersonateLoggedOnUserAndDoSomething(() =>
                     {
-                        Setting.Values.Username = WindowsIdentity.GetCurrent(true).Name;
+                        // See: https://stackoverflow.com/questions/19487541/how-to-get-windows-user-name-from-sessionid
+                        static string GetUsernameBySessionId(int sessionId)
+                        {
+                            string username = "SYSTEM";
+                            if (NativeMethods.WTSQuerySessionInformation(IntPtr.Zero, sessionId, NativeMethods.WTSInfoClass.WTSUserName, out nint buffer, out int strLen) && strLen > 1)
+                            {
+                                username = Marshal.PtrToStringAnsi(buffer);
+                                NativeMethods.WTSFreeMemory(buffer);
+
+                                if (NativeMethods.WTSQuerySessionInformation(IntPtr.Zero, sessionId, NativeMethods.WTSInfoClass.WTSDomainName, out buffer, out strLen) && strLen > 1)
+                                {
+                                    username = @$"{Marshal.PtrToStringAnsi(buffer)}\{username}";
+                                    NativeMethods.WTSFreeMemory(buffer);
+                                }
+                            }
+
+                            return username;
+                        }
+
+                        // The most direct way to fetch the username is WindowsIdentity.GetCurrent(true).Name
+                        // but GetUserName can run within an ExecutionContext.SuppressFlow block, which creates issues
+                        // with WindowsIdentity.GetCurrent.
+                        // See: https://stackoverflow.com/questions/76998988/exception-when-using-executioncontext-suppressflow-in-net-7
+                        // So we use WTSQuerySessionInformation as a workaround.
+                        Setting.Values.Username = GetUsernameBySessionId(Process.GetCurrentProcess().SessionId);
                     });
                 }
                 else
@@ -446,7 +476,7 @@ namespace MouseWithoutBorders
                     Setting.Values.Username = Program.User;
                 }
 
-                Common.LogDebug("[Username] = " + Setting.Values.Username);
+                Logger.LogDebug("[Username] = " + Setting.Values.Username);
             }
 
             return !string.IsNullOrEmpty(Setting.Values.Username);
@@ -489,7 +519,7 @@ Please use the keyboard and Mouse from the SAW device.
             }
             catch (Exception e)
             {
-                Log(e);
+                Logger.Log(e);
             }
         }
     }
